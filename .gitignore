@@ -1,0 +1,8 @@
+# General
+tmp
+
+# PHP tooling
+/vendor
+/php-coverage
+/.php_cs.cache
+/.phpunit.result.cache

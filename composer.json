@@ -1,0 +1,54 @@
+{
+    "name": "allestuetsmerweh/php-deploy",
+    "version": "0.0.1",
+    "type": "library",
+    "description": "Deploy your PHP code",
+    "keywords": ["PHP","Deploy","FTP","SFTP","FTPS"],
+    "homepage": "https://github.com/allestuetsmerweh/php-deploy",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Simon Hatt",
+            "email": "simon+github@hatt.style",
+            "homepage": "https://hatt.style",
+            "role": "Developer"
+        }
+    ],
+    "config": {
+        "platform": {
+            "php": "7.4"
+        }
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^2.16",
+        "phpunit/phpunit": "^9"
+    },
+    "require": {
+        "monolog/monolog": "^2.1",
+        "psr/log": "^1.1"
+    },
+    "scripts": {
+        "fix": "php-cs-fixer fix --config=./.php_cs_config.php -v",
+        "fixdiff": "php-cs-fixer fix --config=./.php_cs_config.php -v --dry-run --diff",
+        "test": "phpunit tests && echo \"\n\nOpen the HTML test coverage in a web browser:\n\n    file://$(pwd)/php-coverage/html-coverage/index.html\n\n\"",
+        "unit_tests": "phpunit tests/unit_tests && echo \"\n\nOpen the HTML test coverage in a web browser:\n\n    file://$(pwd)/php-coverage/html-coverage/index.html\n\n\""
+    },
+    "archive": {
+        "exclude": [
+            "/.github/",
+            "/php-coverage/",
+            "/vendor/",
+            "/.editorconfig",
+            "/.php_cs_config.php",
+            "/.php_cs.cache",
+            "/.php_cs_config.php",
+            "/.phpunit.result.cache",
+            "/phpunit.xml"
+        ]
+    },
+    "autoload": {
+        "psr-4": {
+            "PhpDeploy\\": "lib"
+        }
+    }
+}
