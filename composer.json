@@ -1,6 +1,6 @@
 {
     "name": "allestuetsmerweh/php-deploy",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "type": "library",
     "description": "Deploy your PHP code",
     "keywords": ["PHP","Deploy","FTP","SFTP","FTPS"],

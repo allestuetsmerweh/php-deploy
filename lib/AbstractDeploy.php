@@ -40,7 +40,16 @@ abstract class AbstractDeploy {
             throw new \Exception("Could not create ZIP file");
             // @codeCoverageIgnoreEnd
         }
-        $zip->addGlob("{$real_build_path}/*", GLOB_BRACE, ['remove_path' => "{$real_build_path}/"]);
+        $directory = new \RecursiveDirectoryIterator($real_build_path);
+        $iterator = new \RecursiveIteratorIterator($directory);
+        foreach ($iterator as $item) {
+            $filename = $item->getFileName();
+            if ($filename !== '.' && $filename !== '..') {
+                $real_path = $item->getRealPath();
+                $relative_path = substr($real_path, strlen($real_build_path));
+                $zip->addFile($real_path, $relative_path);
+            }
+        }
         $zip->close();
     }
 
