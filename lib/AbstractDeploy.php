@@ -3,11 +3,16 @@
 namespace PhpDeploy;
 
 abstract class AbstractDeploy {
-    protected $local_build_folder_path = null;
-    protected $local_zip_path = null;
+    protected $local_build_folder_path;
+    protected $local_zip_path;
+    protected $flysystem_filesystem;
+    protected $remote_public_random_deploy_dirname;
 
     abstract public function getRemotePublicPath();
+
     abstract public function getRemotePublicUrl();
+
+    abstract public function getRemotePrivatePath();
 
     public function buildAndDeploy() {
         $this->build();
@@ -27,7 +32,7 @@ abstract class AbstractDeploy {
 
     private function zipFolder() {
         $build_path = $this->getLocalBuildFolderPath();
-        $real_build_path = realpath($build_path);
+        $real_build_path = realpath($build_path).'/';
         $zip_path = $this->getLocalZipPath();
         if (!is_dir(dirname($zip_path))) {
             mkdir(dirname($zip_path), 0755, true);
@@ -56,20 +61,39 @@ abstract class AbstractDeploy {
     public function deploy() {
         $local_zip_path = $this->getLocalZipPath();
         $remote_zip_path = $this->getRemoteZipPath();
-        $local_script_path = __DIR__.'/remote_deploy.php';
+        $local_script_path = __DIR__.'/RemoteDeployBootstrap.php';
         $remote_script_path = $this->getRemoteScriptPath();
-        $remote_fs = $this->getFlysystemFilesystem();
+        $remote_deploy_path = $this->getRemoteDeployPath();
+        $remote_public_path = $this->getRemotePublicPath();
+        $remote_fs = $this->getFlysystemFilesystemSingleton();
+
         try {
             $remote_fs->createDirectory(dirname($remote_zip_path));
         } catch (FilesystemException | UnableToCreateDirectory $exception) {
             // ignore
-        }        
+        }
         $local_zip_stream = fopen($local_zip_path, 'r');
         $remote_fs->writeStream($remote_zip_path, $local_zip_stream);
         fclose($local_zip_stream);
-        $local_script_stream = fopen($local_script_path, 'r');
-        $remote_fs->writeStream($remote_script_path, $local_script_stream);
-        fclose($local_script_stream);
+        $local_script_contents = file_get_contents($local_script_path);
+        $remote_script_contents = str_replace(
+            ['%%%DEPLOY_PATH_OVERRIDE%%%', '%%%PUBLIC_PATH_OVERRIDE%%%'],
+            [$remote_deploy_path, $remote_public_path],
+            $local_script_contents,
+        );
+        $remote_fs->write($remote_script_path, $remote_script_contents);
+
+        $url = $this->getRemotePublicUrl();
+
+        $deploy_out = file_get_contents($url);
+        echo $deploy_out;
+    }
+
+    private function getFlysystemFilesystemSingleton() {
+        if ($this->flysystem_filesystem === null) {
+            $this->flysystem_filesystem = $this->getFlysystemFilesystem();
+        }
+        return $this->flysystem_filesystem;
     }
 
     abstract protected function getFlysystemFilesystem();
@@ -103,19 +127,53 @@ abstract class AbstractDeploy {
     }
 
     public function getRemoteDeployPath() {
-        return 'deploy/';
+        $private_path = $this->getRemotePrivatePath();
+        $deploy_dirname = $this->getRemoteDeployDirname();
+        return "{$private_path}/{$deploy_dirname}/";
+    }
+
+    public function getRemoteDeployDirname() {
+        return 'deploy';
     }
 
     public function getRemoteZipPath() {
         $public_path = $this->getRemotePublicPath();
-        $deploy_path = $this->getRemoteDeployPath();
-        return "{$public_path}/{$deploy_path}/deploy.zip";
+        $deploy_dirname = $this->getRemotePublicRandomDeployDirname();
+        return "{$public_path}/{$deploy_dirname}/deploy.zip";
     }
 
     public function getRemoteScriptPath() {
         $public_path = $this->getRemotePublicPath();
-        $deploy_path = $this->getRemoteDeployPath();
-        return "{$public_path}/{$deploy_path}/deploy.php";
+        $deploy_dirname = $this->getRemotePublicRandomDeployDirname();
+        return "{$public_path}/{$deploy_dirname}/deploy.php";
+    }
+
+    protected function getRemotePublicRandomDeployDirname() {
+        if (!$this->remote_public_random_deploy_dirname) {
+            $public_path = $this->getRemotePublicPath();
+            $remote_fs = $this->getFlysystemFilesystemSingleton();
+
+            $existing_entries = [];
+            $listing = $remote_fs->listContents($public_path);
+            foreach ($listing as $item) {
+                $entry_name = basename($item->path());
+                $existing_entries[$entry_name] = true;
+            }
+
+            for ($i = 0; $i < 10; $i++) {
+                $random_dirname = $this->getRandomPathComponent();
+                $already_exists = $existing_entries[$random_dirname] ?? false;
+                if (!$already_exists) {
+                    $this->remote_public_random_deploy_dirname = $random_dirname;
+                    break;
+                }
+            }
+        }
+        if (!$this->remote_public_random_deploy_dirname) {
+            // This should realistically never happen!
+            throw new Exception("Could not find a random directory to deploy to!");
+        }
+        return $this->remote_public_random_deploy_dirname;
     }
 
     protected function getRandomPathComponent() {

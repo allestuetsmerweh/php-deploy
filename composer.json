@@ -1,6 +1,6 @@
 {
     "name": "allestuetsmerweh/php-deploy",
-    "version": "0.0.2",
+    "version": "0.0.3",
     "type": "library",
     "description": "Deploy your PHP code",
     "keywords": ["PHP","Deploy","FTP","SFTP","FTPS"],
@@ -21,6 +21,8 @@
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^2.16",
+        "league/flysystem": "^2.3",
+        "nette/utils": "^3.2",
         "phpunit/phpunit": "^9"
     },
     "require": {
@@ -31,6 +33,7 @@
         "fix": "php-cs-fixer fix --config=./.php_cs_config.php -v",
         "fixdiff": "php-cs-fixer fix --config=./.php_cs_config.php -v --dry-run --diff",
         "test": "phpunit tests && echo \"\n\nOpen the HTML test coverage in a web browser:\n\n    file://$(pwd)/php-coverage/html-coverage/index.html\n\n\"",
+        "integration_tests": "phpunit tests/integration_tests && echo \"\n\nOpen the HTML test coverage in a web browser:\n\n    file://$(pwd)/php-coverage/html-coverage/index.html\n\n\"",
         "unit_tests": "phpunit tests/unit_tests && echo \"\n\nOpen the HTML test coverage in a web browser:\n\n    file://$(pwd)/php-coverage/html-coverage/index.html\n\n\""
     },
     "archive": {

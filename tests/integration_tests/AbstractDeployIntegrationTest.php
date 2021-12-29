@@ -4,49 +4,15 @@ declare(strict_types=1);
 
 use PhpDeploy\AbstractDeploy;
 
-require_once __DIR__.'/_common/UnitTestCase.php';
+require_once __DIR__.'/_common/IntegrationTestCase.php';
 
-class FakeFlysystemEntry {
-    public function __construct($path) {
-        $this->path = $path;
-    }
-
-    public function path() {
-        return $this->path;
-    }
-}
-
-class FakeFlysystemFilesystem {
-    public function createDirectory($path) {
-        if (!is_dir($path)) {
-            mkdir(__DIR__."/tmp/remote/{$path}");
-        } else {
-            throw new FilesystemException("Directory already exists");
-        }
-    }
-
-    public function listContents($path) {
-        return array_map(
-            function ($name) {
-                return new FakeFlysystemEntry($name);
-            },
-            scandir(__DIR__."/tmp/remote/{$path}"),
-        );
-    }
-
-    public function writeStream($path, $stream) {
-        $content = fread($stream, 1024 * 1024);
-        $this->write($path, $content);
-    }
-
-    public function write($path, $content) {
-        file_put_contents(__DIR__."/tmp/remote/{$path}", $content);
-    }
-}
-
-class FakeDeploy extends AbstractDeploy {
+class FakeIntegrationDeploy extends AbstractDeploy {
     public function getLocalTmpDir() {
-        return __DIR__.'/tmp';
+        $tmp_path = __DIR__.'/tmp/local_tmp';
+        if (!is_dir($tmp_path)) {
+            mkdir($tmp_path, 0777, true);
+        }
+        return $tmp_path;
     }
 
     protected function populateFolder() {
@@ -57,32 +23,32 @@ class FakeDeploy extends AbstractDeploy {
     }
 
     protected function getFlysystemFilesystem() {
-        return new FakeFlysystemFilesystem();
+        $adapter = new League\Flysystem\Local\LocalFilesystemAdapter(
+            __DIR__.'/tmp/test_server/'
+        );
+        return new League\Flysystem\Filesystem($adapter);
     }
 
     public function getRemotePublicPath() {
-        $public_path = __DIR__."/tmp/remote/public_html";
+        $public_path = __DIR__."/tmp/test_server/public_html";
         if (!is_dir($public_path)) {
             mkdir($public_path, 0777, true);
+            file_put_contents("{$public_path}/index.php", 'some index stuff');
         }
         return 'public_html';
     }
 
     public function getRemotePublicUrl() {
-        $realpath = realpath(__DIR__.'/../../lib/RemoteDeployBootstrap.php');
-        return "file://{$realpath}";
+        $deploy_dirname = $this->getRemotePublicRandomDeployDirname();
+        return "http://127.0.0.1:8081/{$deploy_dirname}/deploy.php";
     }
 
     public function getRemotePrivatePath() {
-        $private_path = __DIR__."/tmp/remote/private_files";
-        if (!is_dir($private_path)) {
-            mkdir($private_path, 0777, true);
+        $private_deploy_path = __DIR__."/tmp/test_server/private_files/deploy";
+        if (!is_dir($private_deploy_path)) {
+            mkdir($private_deploy_path, 0777, true);
         }
-        return "private_files";
-    }
-
-    protected function getRandomPathComponent() {
-        return 'deterministically-random';
+        return 'private_files';
     }
 }
 
@@ -90,19 +56,25 @@ class FakeDeploy extends AbstractDeploy {
  * @internal
  * @covers \PhpDeploy\AbstractDeploy
  */
-final class AbstractDeployTest extends UnitTestCase {
+final class AbstractDeployIntegrationTest extends IntegrationTestCase {
     public function testBuildAndDeploy(): void {
-        $fake_deployment_builder = new FakeDeploy();
+        $path = __DIR__.'/tmp/test_server/public_html/';
+        if (!is_dir($path)) {
+            mkdir($path, 0777, true);
+        }
+        $this->startTestServer('127.0.0.1', 8081, $path);
+
+        $fake_deployment_builder = new FakeIntegrationDeploy();
 
         $fake_deployment_builder->buildAndDeploy();
 
         $local_folder_path = $fake_deployment_builder->getLocalBuildFolderPath();
         $local_zip_path = $fake_deployment_builder->getLocalZipPath();
-        $remote_base_path = __DIR__.'/tmp/remote/';
+        $remote_base_path = __DIR__.'/tmp/test_server/';
         $remote_zip_path = $fake_deployment_builder->getRemoteZipPath();
         $remote_script_path = $fake_deployment_builder->getRemoteScriptPath();
 
-        $this->assertSame(__DIR__.'/tmp/deterministically-random/', $local_folder_path);
+        $this->assertMatchesRegularExpression('/\\/tmp\\/local_tmp\\/[\\S]{24}\\/$/', $local_folder_path);
         $this->assertSame(true, is_dir($local_folder_path));
         $this->assertSame(true, is_file("{$local_folder_path}/test.txt"));
         $this->assertSame(true, is_dir("{$local_folder_path}/subdir/"));
@@ -117,49 +89,49 @@ final class AbstractDeployTest extends UnitTestCase {
         $this->assertSame(true, $zip->locateName('subdir/subtest.txt') !== false);
         $this->assertSame(false, $zip->locateName('test') !== false);
 
-        $this->assertSame(true, is_file("{$remote_base_path}{$remote_zip_path}"));
-        $this->assertSame(true, is_file("{$remote_base_path}{$remote_script_path}"));
+        $this->assertSame(false, is_file("{$remote_base_path}/{$remote_zip_path}"));
+        $this->assertSame(false, is_file("{$remote_base_path}/{$remote_script_path}"));
     }
 
     public function testGetLocalBuildFolderPath(): void {
-        $fake_deployment_builder = new FakeDeploy();
+        $fake_deployment_builder = new FakeIntegrationDeploy();
 
         $result = $fake_deployment_builder->getLocalBuildFolderPath();
-        $this->assertSame(__DIR__.'/tmp/deterministically-random/', $result);
+        $this->assertMatchesRegularExpression('/\\/tmp\\/local_tmp\\/[\\S]{24}\\/$/', $result);
     }
 
     public function testGetLocalZipPath(): void {
-        $fake_deployment_builder = new FakeDeploy();
+        $fake_deployment_builder = new FakeIntegrationDeploy();
 
         $result = $fake_deployment_builder->getLocalZipPath();
-        $this->assertSame(__DIR__.'/tmp/deterministically-random.zip', $result);
+        $this->assertMatchesRegularExpression('/\\/tmp\\/local_tmp\\/[\\S]{24}\.zip$/', $result);
     }
 
     public function testGetRemoteDeployPath(): void {
-        $fake_deployment_builder = new FakeDeploy();
+        $fake_deployment_builder = new FakeIntegrationDeploy();
 
         $result = $fake_deployment_builder->getRemoteDeployPath();
         $this->assertSame('private_files/deploy/', $result);
     }
 
     public function testGetRemoteDeployDirname(): void {
-        $fake_deployment_builder = new FakeDeploy();
+        $fake_deployment_builder = new FakeIntegrationDeploy();
 
         $result = $fake_deployment_builder->getRemoteDeployDirname();
         $this->assertSame('deploy', $result);
     }
 
     public function testGetRemoteZipPath(): void {
-        $fake_deployment_builder = new FakeDeploy();
+        $fake_deployment_builder = new FakeIntegrationDeploy();
 
         $result = $fake_deployment_builder->getRemoteZipPath();
-        $this->assertSame('public_html/deterministically-random/deploy.zip', $result);
+        $this->assertMatchesRegularExpression('/public_html\\/[\\S]{24}\\/deploy\\.zip$/', $result);
     }
 
     public function testGetRemoteScriptPath(): void {
-        $fake_deployment_builder = new FakeDeploy();
+        $fake_deployment_builder = new FakeIntegrationDeploy();
 
         $result = $fake_deployment_builder->getRemoteScriptPath();
-        $this->assertSame('public_html/deterministically-random/deploy.php', $result);
+        $this->assertMatchesRegularExpression('/public_html\\/[\\S]{24}\\/deploy\\.php$/', $result);
     }
 }
