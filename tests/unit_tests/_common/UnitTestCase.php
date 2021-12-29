@@ -26,12 +26,14 @@ function remove_r($path) {
         $entries = scandir($path);
         foreach ($entries as $entry) {
             if ($entry !== '.' && $entry !== '..') {
-                $entry_path = realpath("{$path}/{$entry}");
+                $entry_path = "{$path}/{$entry}";
                 remove_r($entry_path);
             }
         }
         rmdir($path);
     } elseif (is_file($path)) {
+        unlink($path);
+    } elseif (is_link($path)) {
         unlink($path);
     }
 }

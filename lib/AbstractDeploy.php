@@ -83,7 +83,9 @@ abstract class AbstractDeploy {
         );
         $remote_fs->write($remote_script_path, $remote_script_contents);
 
-        $url = $this->getRemotePublicUrl();
+        $base_url = $this->getRemotePublicUrl();
+        $deploy_dirname = $this->getRemotePublicRandomDeployDirname();
+        $url = "{$base_url}/{$deploy_dirname}/deploy.php";
 
         $deploy_out = file_get_contents($url);
         echo $deploy_out;
@@ -123,7 +125,10 @@ abstract class AbstractDeploy {
     }
 
     protected function getLocalTmpDir() {
+        // @codeCoverageIgnoreStart
+        // Reason: Useless to test this!
         return sys_get_temp_dir();
+        // @codeCoverageIgnoreEnd
     }
 
     public function getRemoteDeployPath() {

@@ -39,8 +39,7 @@ class FakeIntegrationDeploy extends AbstractDeploy {
     }
 
     public function getRemotePublicUrl() {
-        $deploy_dirname = $this->getRemotePublicRandomDeployDirname();
-        return "http://127.0.0.1:8081/{$deploy_dirname}/deploy.php";
+        return "http://127.0.0.1:8081";
     }
 
     public function getRemotePrivatePath() {

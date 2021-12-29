@@ -69,20 +69,25 @@ class FakeDeploy extends AbstractDeploy {
     }
 
     public function getRemotePublicUrl() {
-        $realpath = realpath(__DIR__.'/../../lib/RemoteDeployBootstrap.php');
+        $realpath = realpath(__DIR__."/tmp/remote/private_files");
         return "file://{$realpath}";
     }
 
     public function getRemotePrivatePath() {
-        $private_path = __DIR__."/tmp/remote/private_files";
+        $private_path = __DIR__."/tmp/remote/private_files/deterministically-random";
         if (!is_dir($private_path)) {
             mkdir($private_path, 0777, true);
+            file_put_contents("{$private_path}/deploy.php", 'test 1234');
         }
         return "private_files";
     }
 
     protected function getRandomPathComponent() {
         return 'deterministically-random';
+    }
+
+    public function testOnlyGetRandomPathComponent() {
+        return parent::getRandomPathComponent();
     }
 }
 
@@ -162,4 +167,13 @@ final class AbstractDeployTest extends UnitTestCase {
         $result = $fake_deployment_builder->getRemoteScriptPath();
         $this->assertSame('public_html/deterministically-random/deploy.php', $result);
     }
+
+    public function testGetRandomPathComponent(): void {
+        $fake_deployment_builder = new FakeDeploy();
+
+        $result = $fake_deployment_builder->testOnlyGetRandomPathComponent();
+        $this->assertMatchesRegularExpression('/^[a-zA-Z0-9_-]{24}$/', $result);
+    }
+
+    
 }
