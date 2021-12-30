@@ -174,6 +174,4 @@ final class AbstractDeployTest extends UnitTestCase {
         $result = $fake_deployment_builder->testOnlyGetRandomPathComponent();
         $this->assertMatchesRegularExpression('/^[a-zA-Z0-9_-]{24}$/', $result);
     }
-
-    
 }

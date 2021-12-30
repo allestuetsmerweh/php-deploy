@@ -55,8 +55,13 @@ final class AbstractDefaultDeployTest extends UnitTestCase {
             $fake_deployment_builder = $fake_default_deploy->cli();
             throw new Exception('Exception expected');
         } catch (\Throwable $th) {
-            $this->assertSame(2, $th->getCode());
-            $this->assertSame('Undefined array key "environment"', $th->getMessage());
+            $correct_message = (
+                // PHP 8
+                $th->getMessage() === 'Undefined array key "environment"'
+                // PHP 7
+                || $th->getMessage() === 'Undefined index: environment'
+            );
+            $this->assertSame(true, $correct_message);
         }
     }
 

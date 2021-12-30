@@ -30,7 +30,7 @@ class IntegrationTestCase extends TestCase {
     protected function startTestServer(
         $host = '127.0.0.1',
         $port = 8080,
-        $path = null,
+        $path = null
     ) {
         if ($path === null) {
             $path = __DIR__.'/../tmp/test-server/';

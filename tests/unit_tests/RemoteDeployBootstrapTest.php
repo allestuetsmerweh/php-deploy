@@ -104,8 +104,13 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             $fake_remote_deploy_bootstrap->run();
             throw new Exception('Exception expected');
         } catch (\Throwable $th) {
-            $this->assertSame(0, $th->getCode());
-            $this->assertSame('Invalid or uninitialized Zip object', $th->getMessage());
+            $correct_message = (
+                // PHP 8
+                $th->getMessage() === 'Invalid or uninitialized Zip object'
+                // PHP 7
+                || $th->getMessage() === 'ZipArchive::extractTo(): Invalid or uninitialized Zip object'
+            );
+            $this->assertSame(true, $correct_message);
         }
         $this->assertSame(false, is_file($zip_path));
         $this->assertSame(false, is_file($php_path));
