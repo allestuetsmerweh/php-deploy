@@ -59,7 +59,7 @@ class IntegrationTestCase extends TestCase {
                         return;
                     }
                     echo "Wrong response: {$is_server_up_content}\n";
-                } catch (Exception $exc) {
+                } catch (\Exception $exc) {
                     echo "EXCEPTION({$i}): {$exc}\n";
                 }
                 sleep(1);

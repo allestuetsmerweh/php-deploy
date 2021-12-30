@@ -17,11 +17,15 @@ class FakeFlysystemEntry {
 }
 
 class FakeFlysystemFilesystem {
+    public $has_thrown_create_directory_error = false;
+
     public function createDirectory($path) {
-        if (!is_dir($path)) {
-            mkdir(__DIR__."/tmp/remote/{$path}");
+        $full_path = __DIR__."/tmp/remote/{$path}";
+        if (!is_dir($full_path)) {
+            mkdir($full_path);
         } else {
-            throw new FilesystemException("Directory already exists");
+            $this->has_thrown_create_directory_error = true;
+            throw new \Exception("Directory already exists");
         }
     }
 
@@ -45,8 +49,11 @@ class FakeFlysystemFilesystem {
 }
 
 class FakeDeploy extends AbstractDeploy {
+    public $deploy_php_output = 'deploy:SUCCESS';
+    public $random_path_component = 'deterministically-random';
+
     public function getLocalTmpDir() {
-        return __DIR__.'/tmp';
+        return __DIR__.'/tmp/local';
     }
 
     protected function populateFolder() {
@@ -57,7 +64,10 @@ class FakeDeploy extends AbstractDeploy {
     }
 
     protected function getFlysystemFilesystem() {
-        return new FakeFlysystemFilesystem();
+        if (!$this->flysystem_filesystem) {
+            $this->flysystem_filesystem = new FakeFlysystemFilesystem();
+        }
+        return $this->flysystem_filesystem;
     }
 
     public function getRemotePublicPath() {
@@ -74,20 +84,28 @@ class FakeDeploy extends AbstractDeploy {
     }
 
     public function getRemotePrivatePath() {
-        $private_path = __DIR__."/tmp/remote/private_files/deterministically-random";
+        $private_path = __DIR__."/tmp/remote/private_files/{$this->random_path_component}";
         if (!is_dir($private_path)) {
             mkdir($private_path, 0777, true);
-            file_put_contents("{$private_path}/deploy.php", 'test 1234');
+            file_put_contents("{$private_path}/deploy.php", $this->deploy_php_output);
         }
         return "private_files";
     }
 
     protected function getRandomPathComponent() {
-        return 'deterministically-random';
+        return $this->random_path_component;
     }
 
     public function testOnlyGetRandomPathComponent() {
         return parent::getRandomPathComponent();
+    }
+
+    public function testOnlyGetRemotePublicRandomDeployDirname() {
+        return parent::getRemotePublicRandomDeployDirname();
+    }
+
+    public function testOnlyGetFlysystemFilesystem() {
+        return $this->getFlysystemFilesystem();
     }
 }
 
@@ -107,7 +125,7 @@ final class AbstractDeployTest extends UnitTestCase {
         $remote_zip_path = $fake_deployment_builder->getRemoteZipPath();
         $remote_script_path = $fake_deployment_builder->getRemoteScriptPath();
 
-        $this->assertSame(__DIR__.'/tmp/deterministically-random/', $local_folder_path);
+        $this->assertSame(__DIR__.'/tmp/local/deterministically-random/', $local_folder_path);
         $this->assertSame(true, is_dir($local_folder_path));
         $this->assertSame(true, is_file("{$local_folder_path}/test.txt"));
         $this->assertSame(true, is_dir("{$local_folder_path}/subdir/"));
@@ -124,20 +142,50 @@ final class AbstractDeployTest extends UnitTestCase {
 
         $this->assertSame(true, is_file("{$remote_base_path}{$remote_zip_path}"));
         $this->assertSame(true, is_file("{$remote_base_path}{$remote_script_path}"));
+
+        $fs = $fake_deployment_builder->testOnlyGetFlysystemFilesystem();
+        $this->assertSame(false, $fs->has_thrown_create_directory_error);
+    }
+
+    public function testBuildAndDeployWithRemoteError(): void {
+        $fake_deployment_builder = new FakeDeploy();
+        $fake_deployment_builder->deploy_php_output = 'some exception';
+
+        try {
+            $fake_deployment_builder->buildAndDeploy();
+            throw new \Exception('Exception expected');
+        } catch (\Throwable $th) {
+            $this->assertSame('Deployment failed: some exception', $th->getMessage());
+        }
+    }
+
+    public function testDeployRemoteDeployDirectoryAlreadyExists(): void {
+        $fake_deployment_builder = new FakeDeploy();
+        $remote_zip_path = $fake_deployment_builder->getRemoteZipPath();
+        $remote_path = __DIR__."/tmp/remote";
+        $public_path = dirname("{$remote_path}/{$remote_zip_path}");
+        if (!is_dir($public_path)) {
+            mkdir($public_path, 0777, true);
+        }
+
+        $fake_deployment_builder->buildAndDeploy();
+
+        $fs = $fake_deployment_builder->testOnlyGetFlysystemFilesystem();
+        $this->assertSame(true, $fs->has_thrown_create_directory_error);
     }
 
     public function testGetLocalBuildFolderPath(): void {
         $fake_deployment_builder = new FakeDeploy();
 
         $result = $fake_deployment_builder->getLocalBuildFolderPath();
-        $this->assertSame(__DIR__.'/tmp/deterministically-random/', $result);
+        $this->assertSame(__DIR__.'/tmp/local/deterministically-random/', $result);
     }
 
     public function testGetLocalZipPath(): void {
         $fake_deployment_builder = new FakeDeploy();
 
         $result = $fake_deployment_builder->getLocalZipPath();
-        $this->assertSame(__DIR__.'/tmp/deterministically-random.zip', $result);
+        $this->assertSame(__DIR__.'/tmp/local/deterministically-random.zip', $result);
     }
 
     public function testGetRemoteDeployPath(): void {
@@ -173,5 +221,28 @@ final class AbstractDeployTest extends UnitTestCase {
 
         $result = $fake_deployment_builder->testOnlyGetRandomPathComponent();
         $this->assertMatchesRegularExpression('/^[a-zA-Z0-9_-]{24}$/', $result);
+    }
+
+    public function testGetRemotePublicRandomDeployDirname(): void {
+        $fake_deployment_builder = new FakeDeploy();
+
+        $result = $fake_deployment_builder->testOnlyGetRemotePublicRandomDeployDirname();
+        $this->assertSame('deterministically-random', $result);
+    }
+
+    public function testGetRemotePublicRandomDeployDirnameAlreadyExists(): void {
+        $fake_deployment_builder = new FakeDeploy();
+        $fake_deployment_builder->random_path_component = 'already-exists';
+        $public_path = __DIR__."/tmp/remote/public_html/already-exists";
+        if (!is_dir($public_path)) {
+            mkdir($public_path, 0777, true);
+        }
+
+        try {
+            $fake_deployment_builder->testOnlyGetRemotePublicRandomDeployDirname();
+            throw new \Exception('Exception expected');
+        } catch (\Throwable $th) {
+            $this->assertSame('Could not find a random directory to deploy to!', $th->getMessage());
+        }
     }
 }

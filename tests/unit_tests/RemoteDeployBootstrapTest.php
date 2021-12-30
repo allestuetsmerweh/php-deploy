@@ -80,6 +80,45 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(true, is_dir("{$private_deploy_path}/2020-03-16_09_00_00"));
     }
 
+    public function testRunInexistentPrivateDirectory(): void {
+        $public_deploy_path = __DIR__.'/tmp/public_html/ABCDEFGHIJ';
+        $private_deploy_path = __DIR__.'/tmp/private_files/deploy';
+        $zip_path = "{$public_deploy_path}/deploy.zip";
+        $php_path = "{$public_deploy_path}/deploy.php";
+        if (!is_dir($public_deploy_path)) {
+            mkdir($public_deploy_path, 0777, true);
+        }
+        $zip = new \ZipArchive();
+        $zip->open($zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFromString('test.txt', 'test1234');
+        $zip->addFromString('subdir/subtest.txt', 'subtest1234');
+        $zip->close();
+        file_put_contents($php_path, 'whatever');
+
+        $this->assertSame(true, is_file($zip_path));
+        $this->assertSame(true, is_file($php_path));
+        $this->assertSame(false, is_dir("{$private_deploy_path}/2020-03-16_09_00_00"));
+        $this->assertSame(false, is_dir("{$public_deploy_path}/unzip"));
+
+        try {
+            $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+            $fake_remote_deploy_bootstrap->run();
+            throw new \Exception('Exception expected');
+        } catch (\Throwable $th) {
+            $correct_message = (
+                // PHP 8
+                $th->getMessage() === 'Invalid or uninitialized Zip object'
+                // PHP 7
+                || $th->getMessage() === 'ZipArchive::extractTo(): Invalid or uninitialized Zip object'
+            );
+            $this->assertMatchesRegularExpression('/No such file or directory/', $th->getMessage());
+        }
+        $this->assertSame(false, is_file($zip_path));
+        $this->assertSame(false, is_file($php_path));
+        $this->assertSame(false, is_dir("{$private_deploy_path}/2020-03-16_09_00_00"));
+        $this->assertSame(true, is_dir("{$public_deploy_path}/unzip"));
+    }
+
     public function testRunWithInvalidZip(): void {
         $public_deploy_path = __DIR__.'/tmp/public_html/ABCDEFGHIJ';
         $private_deploy_path = __DIR__.'/tmp/private_files/deploy';
@@ -102,7 +141,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         try {
             $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
             $fake_remote_deploy_bootstrap->run();
-            throw new Exception('Exception expected');
+            throw new \Exception('Exception expected');
         } catch (\Throwable $th) {
             $correct_message = (
                 // PHP 8

@@ -53,7 +53,7 @@ final class AbstractDefaultDeployTest extends UnitTestCase {
         $fake_default_deploy = new FakeDefaultDeploy();
         try {
             $fake_deployment_builder = $fake_default_deploy->cli();
-            throw new Exception('Exception expected');
+            throw new \Exception('Exception expected');
         } catch (\Throwable $th) {
             $correct_message = (
                 // PHP 8

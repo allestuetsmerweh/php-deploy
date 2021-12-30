@@ -14,26 +14,62 @@ class RemoteDeployBootstrap {
     const PUBLIC_PATH_OVERRIDE = '%%%PUBLIC_PATH_OVERRIDE%%%';
 
     public function run() {
-        // Constants
-        $date = $this->getDateString();
-        $public_deploy_path = $this->getPublicDeployPath();
-        $php_path = "{$public_deploy_path}/deploy.php";
-        $zip_path = "{$public_deploy_path}/deploy.zip";
-        $unzip_path = "{$public_deploy_path}/unzip/";
-        $base_path = substr($public_deploy_path, 0, strpos($public_deploy_path, $this->getPublicPath()));
-        $deploy_path = $base_path.$this->getDeployPath();
-        $destination_path = "{$deploy_path}/{$date}";
-        $current_link_path = "{$deploy_path}/current";
-
-        // Unzip the uploaded file with all the code to be deployed.
-        if (!is_dir($unzip_path)) {
-            mkdir($unzip_path, 0777, true);
-        }
         try {
+            // Constants
+            $date = $this->getDateString();
+            $public_deploy_path = $this->getPublicDeployPath();
+            $public_path = $this->getPublicPath();
+            $php_path = "{$public_deploy_path}/deploy.php";
+            $zip_path = "{$public_deploy_path}/deploy.zip";
+            $unzip_path = "{$public_deploy_path}/unzip/";
+            $base_index = strpos($public_deploy_path, "/{$public_path}/");
+            if ($base_index === false) {
+                throw new \Exception("Did not find the public path ({$public_path}) in {$public_deploy_path}");
+            }
+            $base_path = substr($public_deploy_path, 0, $base_index);
+            $deploy_path = $base_path.'/'.$this->getDeployPath();
+            $destination_path = "{$deploy_path}/{$date}";
+            $current_link_path = "{$deploy_path}/current";
+
+            // Unzip the uploaded file with all the code to be deployed.
+            if (!is_dir($unzip_path)) {
+                mkdir($unzip_path, 0777, true);
+            }
             $zip = new \ZipArchive();
             $zip->open($zip_path);
             $zip->extractTo($unzip_path);
             $zip->close();
+
+            unlink($zip_path);
+
+            // Move the code to the appropriate destination.
+            $has_successfully_renamed = rename($unzip_path, $destination_path);
+            if (!$has_successfully_renamed) {
+                // @codeCoverageIgnoreStart
+                // Reason: Hard to test!
+                throw new \Exception("Could not rename {$unzip_path} to {$destination_path}");
+                // @codeCoverageIgnoreEnd
+            }
+
+            // Redirect current link to the new deployment.
+            if (is_link($current_link_path)) {
+                unlink($current_link_path);
+            }
+            $has_successfully_symlinked = symlink($destination_path, $current_link_path);
+            if (!$has_successfully_symlinked) {
+                // @codeCoverageIgnoreStart
+                // Reason: Hard to test!
+                throw new \Exception("Could not symlink {$current_link_path} to {$destination_path}");
+                // @codeCoverageIgnoreEnd
+            }
+
+            // Clean up.
+            if (is_file($php_path)) {
+                unlink($php_path);
+            }
+            rmdir(dirname($php_path));
+
+            echo "deploy:SUCCESS";
         } catch (\Throwable $th) {
             // Keep the zip (for debugging purposes).
             if (is_file($zip_path)) {
@@ -44,25 +80,6 @@ class RemoteDeployBootstrap {
             }
             throw $th;
         }
-
-        unlink($zip_path);
-
-        // Move the code to the appropriate destination.
-        rename($unzip_path, $destination_path);
-
-        // Redirect current link to the new deployment.
-        if (is_link($current_link_path)) {
-            unlink($current_link_path);
-        }
-        symlink($destination_path, $current_link_path);
-
-        // Clean up.
-        if (is_file($php_path)) {
-            unlink($php_path);
-        }
-        rmdir(dirname($php_path));
-
-        echo "deploy:SUCCESS";
     }
 
     protected function getDateString() {
@@ -92,5 +109,9 @@ class RemoteDeployBootstrap {
 
 if ($_SERVER['SCRIPT_FILENAME'] === realpath(__FILE__)) {
     $remote_deploy_bootstrap = new RemoteDeployBootstrap();
-    $remote_deploy_bootstrap->run();
+    try {
+        $remote_deploy_bootstrap->run();
+    } catch (\Throwable $th) {
+        echo "deploy:ERROR:{$th->getMessage()}";
+    }
 }

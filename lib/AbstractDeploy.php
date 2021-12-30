@@ -34,9 +34,6 @@ abstract class AbstractDeploy {
         $build_path = $this->getLocalBuildFolderPath();
         $real_build_path = realpath($build_path).'/';
         $zip_path = $this->getLocalZipPath();
-        if (!is_dir(dirname($zip_path))) {
-            mkdir(dirname($zip_path), 0755, true);
-        }
         $zip = new \ZipArchive();
         $res = $zip->open($zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
         if (!$res) {
@@ -69,7 +66,7 @@ abstract class AbstractDeploy {
 
         try {
             $remote_fs->createDirectory(dirname($remote_zip_path));
-        } catch (FilesystemException | UnableToCreateDirectory $exception) {
+        } catch (\Throwable $th) {
             // ignore
         }
         $local_zip_stream = fopen($local_zip_path, 'r');
@@ -81,6 +78,7 @@ abstract class AbstractDeploy {
             [$remote_deploy_path, $remote_public_path],
             $local_script_contents,
         );
+        echo $remote_script_contents;
         $remote_fs->write($remote_script_path, $remote_script_contents);
 
         $base_url = $this->getRemotePublicUrl();
@@ -88,7 +86,9 @@ abstract class AbstractDeploy {
         $url = "{$base_url}/{$deploy_dirname}/deploy.php";
 
         $deploy_out = file_get_contents($url);
-        echo $deploy_out;
+        if ($deploy_out !== 'deploy:SUCCESS') {
+            throw new \Exception("Deployment failed: {$deploy_out}");
+        }
     }
 
     private function getFlysystemFilesystemSingleton() {
@@ -176,7 +176,7 @@ abstract class AbstractDeploy {
         }
         if (!$this->remote_public_random_deploy_dirname) {
             // This should realistically never happen!
-            throw new Exception("Could not find a random directory to deploy to!");
+            throw new \Exception("Could not find a random directory to deploy to!");
         }
         return $this->remote_public_random_deploy_dirname;
     }
