@@ -21,49 +21,63 @@ class RemoteDeployBootstrap {
             $public_path = $this->getPublicPath();
             $php_path = "{$public_deploy_path}/deploy.php";
             $zip_path = "{$public_deploy_path}/deploy.zip";
-            $unzip_path = "{$public_deploy_path}/unzip/";
+            $invalid_zip_path = "{$public_deploy_path}/invalid_deploy_{$date}.zip";
             $base_index = strpos($public_deploy_path, "/{$public_path}/");
             if ($base_index === false) {
                 throw new \Exception("Did not find the public path ({$public_path}) in {$public_deploy_path}");
             }
             $base_path = substr($public_deploy_path, 0, $base_index);
             $deploy_path = $base_path.'/'.$this->getDeployPath();
-            $destination_path = "{$deploy_path}/{$date}";
-            $current_link_path = "{$deploy_path}/current";
+            $candidate_path = "{$deploy_path}/candidate";
+            $live_path = "{$deploy_path}/live";
+            $previous_path = "{$deploy_path}/previous";
+            $invalid_candidate_path = "{$deploy_path}/invalid_candidate_{$date}";
+            $residual_candidate_path = "{$deploy_path}/residual_candidate_{$date}";
 
-            // Unzip the uploaded file with all the code to be deployed.
-            if (!is_dir($unzip_path)) {
-                mkdir($unzip_path, 0777, true);
+            // Run some checks
+            if (!is_dir($deploy_path)) {
+                throw new \Exception("Deploy path ({$deploy_path}) does not exist");
             }
+
+            // Save residual candidate when a previous deployment failed
+            if (is_dir($candidate_path)) {
+                if (!rename($candidate_path, $residual_candidate_path)) {
+                    // @codeCoverageIgnoreStart
+                    // Reason: Hard to test!
+                    throw new \Exception("Could not rename {$candidate_path} to {$residual_candidate_path}");
+                    // @codeCoverageIgnoreEnd
+                }
+            }
+
+            // Unzip the uploaded file to candidate directory.
+            mkdir($candidate_path);
             $zip = new \ZipArchive();
             $zip->open($zip_path);
-            $zip->extractTo($unzip_path);
+            $zip->extractTo($candidate_path);
             $zip->close();
 
             unlink($zip_path);
 
-            // Move the code to the appropriate destination.
-            $has_successfully_renamed = rename($unzip_path, $destination_path);
-            if (!$has_successfully_renamed) {
+            // Put the candidate live
+            if (is_dir($previous_path)) {
+                $this->remove_r($previous_path);
+            }
+            if (is_dir($live_path)) {
+                if (!rename($live_path, $previous_path)) {
+                    // @codeCoverageIgnoreStart
+                    // Reason: Hard to test!
+                    throw new \Exception("Could not rename {$live_path} to {$previous_path}");
+                    // @codeCoverageIgnoreEnd
+                }
+            }
+            if (!rename($candidate_path, $live_path)) {
                 // @codeCoverageIgnoreStart
                 // Reason: Hard to test!
-                throw new \Exception("Could not rename {$unzip_path} to {$destination_path}");
+                throw new \Exception("Could not rename {$live_path} to {$previous_path}");
                 // @codeCoverageIgnoreEnd
             }
 
-            // Redirect current link to the new deployment.
-            if (is_link($current_link_path)) {
-                unlink($current_link_path);
-            }
-            $has_successfully_symlinked = symlink($destination_path, $current_link_path);
-            if (!$has_successfully_symlinked) {
-                // @codeCoverageIgnoreStart
-                // Reason: Hard to test!
-                throw new \Exception("Could not symlink {$current_link_path} to {$destination_path}");
-                // @codeCoverageIgnoreEnd
-            }
-
-            // Clean up.
+            // Clean up
             if (is_file($php_path)) {
                 unlink($php_path);
             }
@@ -72,13 +86,34 @@ class RemoteDeployBootstrap {
             echo "deploy:SUCCESS";
         } catch (\Throwable $th) {
             // Keep the zip (for debugging purposes).
-            if (is_file($zip_path)) {
-                rename($zip_path, "{$public_deploy_path}/invalid_deploy_{$date}.zip");
+            if (isset($zip_path) && is_file($zip_path) && isset($invalid_zip_path)) {
+                rename($zip_path, $invalid_zip_path);
             }
-            if (is_file($php_path)) {
+            if (isset($php_path) && is_file($php_path)) {
                 unlink($php_path);
             }
+            if (isset($candidate_path) && is_dir($candidate_path) && isset($invalid_candidate_path)) {
+                rename($candidate_path, $invalid_candidate_path);
+            }
             throw $th;
+        }
+    }
+
+    // This file needs to be dependency-free!
+    protected function remove_r($path) {
+        if (is_dir($path)) {
+            $entries = scandir($path);
+            foreach ($entries as $entry) {
+                if ($entry !== '.' && $entry !== '..') {
+                    $entry_path = "{$path}/{$entry}";
+                    $this->remove_r($entry_path);
+                }
+            }
+            rmdir($path);
+        } elseif (is_link($path)) {
+            unlink($path);
+        } elseif (is_file($path)) {
+            unlink($path);
         }
     }
 

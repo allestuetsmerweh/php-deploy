@@ -78,7 +78,6 @@ abstract class AbstractDeploy {
             [$remote_deploy_path, $remote_public_path],
             $local_script_contents,
         );
-        echo $remote_script_contents;
         $remote_fs->write($remote_script_path, $remote_script_contents);
 
         $base_url = $this->getRemotePublicUrl();
@@ -134,7 +133,7 @@ abstract class AbstractDeploy {
     public function getRemoteDeployPath() {
         $private_path = $this->getRemotePrivatePath();
         $deploy_dirname = $this->getRemoteDeployDirname();
-        return "{$private_path}/{$deploy_dirname}/";
+        return "{$private_path}/{$deploy_dirname}";
     }
 
     public function getRemoteDeployDirname() {

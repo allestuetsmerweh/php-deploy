@@ -53,7 +53,7 @@ class FakeDeploy extends AbstractDeploy {
     public $random_path_component = 'deterministically-random';
 
     public function getLocalTmpDir() {
-        return __DIR__.'/tmp/local';
+        return __DIR__.'/tmp/local/local_tmp';
     }
 
     protected function populateFolder() {
@@ -125,7 +125,7 @@ final class AbstractDeployTest extends UnitTestCase {
         $remote_zip_path = $fake_deployment_builder->getRemoteZipPath();
         $remote_script_path = $fake_deployment_builder->getRemoteScriptPath();
 
-        $this->assertSame(__DIR__.'/tmp/local/deterministically-random/', $local_folder_path);
+        $this->assertSame(__DIR__.'/tmp/local/local_tmp/deterministically-random/', $local_folder_path);
         $this->assertSame(true, is_dir($local_folder_path));
         $this->assertSame(true, is_file("{$local_folder_path}/test.txt"));
         $this->assertSame(true, is_dir("{$local_folder_path}/subdir/"));
@@ -178,21 +178,21 @@ final class AbstractDeployTest extends UnitTestCase {
         $fake_deployment_builder = new FakeDeploy();
 
         $result = $fake_deployment_builder->getLocalBuildFolderPath();
-        $this->assertSame(__DIR__.'/tmp/local/deterministically-random/', $result);
+        $this->assertSame(__DIR__.'/tmp/local/local_tmp/deterministically-random/', $result);
     }
 
     public function testGetLocalZipPath(): void {
         $fake_deployment_builder = new FakeDeploy();
 
         $result = $fake_deployment_builder->getLocalZipPath();
-        $this->assertSame(__DIR__.'/tmp/local/deterministically-random.zip', $result);
+        $this->assertSame(__DIR__.'/tmp/local/local_tmp/deterministically-random.zip', $result);
     }
 
     public function testGetRemoteDeployPath(): void {
         $fake_deployment_builder = new FakeDeploy();
 
         $result = $fake_deployment_builder->getRemoteDeployPath();
-        $this->assertSame('private_files/deploy/', $result);
+        $this->assertSame('private_files/deploy', $result);
     }
 
     public function testGetRemoteDeployDirname(): void {
