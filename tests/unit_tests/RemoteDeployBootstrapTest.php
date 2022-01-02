@@ -68,6 +68,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         }
         $zip = new \ZipArchive();
         $zip->open($zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFile(__DIR__.'/resources/Deploy.php', 'Deploy.php');
         $zip->addFromString('test.txt', 'test1234');
         $zip->addFromString('subdir/subtest.txt', 'subtest1234');
         $zip->close();
@@ -87,6 +88,11 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(false, is_dir("{$private_deploy_path}/candidate"));
         $this->assertSame(true, is_dir("{$private_deploy_path}/live"));
         $this->assertSame(false, is_dir("{$private_deploy_path}/previous"));
+
+        $this->assertMatchesRegularExpression(
+            '/\\/tmp\\/public_html$/',
+            file_get_contents("{$private_deploy_path}/live/installed_to.txt")
+        );
     }
 
     public function testRunInexistentPublicPath(): void {
@@ -115,6 +121,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         }
         $zip = new \ZipArchive();
         $zip->open($zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFile(__DIR__.'/resources/Deploy.php', 'Deploy.php');
         $zip->addFromString('test.txt', 'test1234');
         $zip->addFromString('subdir/subtest.txt', 'subtest1234');
         $zip->close();
@@ -202,6 +209,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         }
         $zip = new \ZipArchive();
         $zip->open($zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFile(__DIR__.'/resources/Deploy.php', 'Deploy.php');
         $zip->addFromString('test.txt', 'test1234');
         $zip->addFromString('subdir/subtest.txt', 'subtest1234');
         $zip->close();
@@ -224,6 +232,11 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(true, is_dir("{$private_deploy_path}/residual_candidate_2020-03-16_09_00_00"));
         $this->assertSame(true, is_dir("{$private_deploy_path}/live"));
         $this->assertSame(false, is_dir("{$private_deploy_path}/previous"));
+
+        $this->assertMatchesRegularExpression(
+            '/\\/tmp\\/public_html$/',
+            file_get_contents("{$private_deploy_path}/live/installed_to.txt")
+        );
     }
 
     public function testRunWithPreviousDeployments(): void {
@@ -239,6 +252,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         }
         $zip = new \ZipArchive();
         $zip->open($zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFile(__DIR__.'/resources/Deploy.php', 'Deploy.php');
         $zip->addFromString('test.txt', 'test1234');
         $zip->addFromString('subdir/subtest.txt', 'subtest1234');
         $zip->close();
@@ -292,6 +306,50 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             'unit_subtest_live',
             file_get_contents("{$private_deploy_path}/previous/subdir/subtest.txt")
         );
+
+        $this->assertMatchesRegularExpression(
+            '/\\/tmp\\/public_html$/',
+            file_get_contents("{$private_deploy_path}/live/installed_to.txt")
+        );
+    }
+
+    public function testRunWithoutDeployPhp(): void {
+        $public_deploy_path = __DIR__.'/tmp/public_html/ABCDEFGHIJ';
+        $private_deploy_path = __DIR__.'/tmp/private_files/deploy';
+        $zip_path = "{$public_deploy_path}/deploy.zip";
+        $php_path = "{$public_deploy_path}/deploy.php";
+        if (!is_dir($public_deploy_path)) {
+            mkdir($public_deploy_path, 0777, true);
+        }
+        if (!is_dir($private_deploy_path)) {
+            mkdir($private_deploy_path, 0777, true);
+        }
+        $zip = new \ZipArchive();
+        $zip->open($zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFromString('test.txt', 'test1234');
+        $zip->addFromString('subdir/subtest.txt', 'subtest1234');
+        $zip->close();
+        file_put_contents($php_path, 'whatever');
+
+        $this->assertSame(true, is_file($zip_path));
+        $this->assertSame(true, is_file($php_path));
+        $this->assertSame(false, is_dir("{$private_deploy_path}/candidate"));
+        $this->assertSame(false, is_dir("{$private_deploy_path}/live"));
+        $this->assertSame(false, is_dir("{$private_deploy_path}/previous"));
+
+        try {
+            $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+            $fake_remote_deploy_bootstrap->run();
+            throw new \Exception('Exception expected');
+        } catch (\Throwable $th) {
+            $this->assertSame('Deploy.php not found', $th->getMessage());
+        }
+
+        $this->assertSame(false, is_file($zip_path));
+        $this->assertSame(false, is_file($php_path));
+        $this->assertSame(false, is_dir("{$private_deploy_path}/candidate"));
+        $this->assertSame(true, is_dir("{$private_deploy_path}/live"));
+        $this->assertSame(false, is_dir("{$private_deploy_path}/previous"));
     }
 
     public function testRemoveR(): void {

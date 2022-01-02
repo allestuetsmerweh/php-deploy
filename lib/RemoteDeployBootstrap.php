@@ -83,6 +83,22 @@ class RemoteDeployBootstrap {
             }
             rmdir(dirname($php_path));
 
+            // Install
+            $install_script_path = "{$live_path}/Deploy.php";
+            if (!is_file($install_script_path)) {
+                throw new \Exception("Deploy.php not found");
+            }
+            require_once $install_script_path;
+            if (!class_exists('\Deploy') || !method_exists('\Deploy', 'install')) {
+                // @codeCoverageIgnoreStart
+                // Reason: Hard to test!
+                throw new \Exception("Class Deploy is not defined in Deploy.php");
+                // @codeCoverageIgnoreEnd
+            }
+            $deploy = new \Deploy();
+            $install_path = $base_path.'/'.$this->getPublicPath();
+            $deploy->install($install_path);
+
             echo "deploy:SUCCESS";
         } catch (\Throwable $th) {
             // Keep the zip (for debugging purposes).

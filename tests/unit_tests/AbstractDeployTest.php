@@ -51,6 +51,7 @@ class FakeFlysystemFilesystem {
 class FakeDeploy extends AbstractDeploy {
     public $deploy_php_output = 'deploy:SUCCESS';
     public $random_path_component = 'deterministically-random';
+    public $installed_to;
 
     public function getLocalTmpDir() {
         return __DIR__.'/tmp/local/local_tmp';
@@ -94,6 +95,10 @@ class FakeDeploy extends AbstractDeploy {
 
     protected function getRandomPathComponent() {
         return $this->random_path_component;
+    }
+
+    public function install($public_path) {
+        $this->installed_to = $public_path;
     }
 
     public function testOnlyGetRandomPathComponent() {

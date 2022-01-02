@@ -19,6 +19,8 @@ abstract class AbstractDeploy {
         $this->deploy();
     }
 
+    abstract public function install($public_path);
+
     public function build() {
         $build_path = $this->getLocalBuildFolderPath();
         if (!is_dir($build_path)) {

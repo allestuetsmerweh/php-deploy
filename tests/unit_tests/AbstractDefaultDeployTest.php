@@ -11,6 +11,7 @@ class FakeDefaultDeploy extends AbstractDefaultDeploy {
     public $environment_variables = [];
 
     public $build_and_deploy_called = false;
+    public $installed_to;
 
     protected function populateFolder() {
     }
@@ -41,6 +42,10 @@ class FakeDefaultDeploy extends AbstractDefaultDeploy {
 
     protected function getEnvironmentVariable($variable_name) {
         return $this->environment_variables[$variable_name];
+    }
+
+    public function install($public_path) {
+        $this->installed_to = $public_path;
     }
 }
 

@@ -17,6 +17,7 @@ class FakeIntegrationDeploy extends AbstractDeploy {
 
     protected function populateFolder() {
         $path = $this->getLocalBuildFolderPath();
+        copy(__DIR__.'/resources/Deploy.php', "{$path}/Deploy.php");
         file_put_contents("{$path}/test.txt", 'test1234');
         mkdir("{$path}/subdir/");
         file_put_contents("{$path}/subdir/subtest.txt", 'subtest1234');
@@ -48,6 +49,10 @@ class FakeIntegrationDeploy extends AbstractDeploy {
             mkdir($private_deploy_path, 0777, true);
         }
         return 'private_files';
+    }
+
+    public function install($public_path) {
+        // unused, see ./tests/integration_tests/resources/Deploy.php
     }
 }
 
@@ -114,6 +119,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $remote_zip_path = $fake_deployment_builder->getRemoteZipPath();
         $remote_script_path = $fake_deployment_builder->getRemoteScriptPath();
         $remote_deploy_path = $fake_deployment_builder->getRemoteDeployPath();
+        $remote_public_path = $fake_deployment_builder->getRemotePublicPath();
 
         $this->assertSame(false, is_file("{$remote_base_path}/{$remote_zip_path}"));
         $this->assertSame(false, is_file("{$remote_base_path}/{$remote_script_path}"));
@@ -137,6 +143,10 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             'subtest1234',
             file_get_contents("{$remote_base_path}/{$remote_deploy_path}/live/subdir/subtest.txt")
         );
+        $this->assertSame(
+            'test1234',
+            file_get_contents("{$remote_base_path}/{$remote_public_path}/index.txt")
+        );
     }
 
     public function testFreshDeploy(): void {
@@ -144,6 +154,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $local_zip_path = $fake_deployment_builder->getLocalZipPath();
         $zip = new \ZipArchive();
         $zip->open($local_zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFile(__DIR__.'/resources/Deploy.php', 'Deploy.php');
         $zip->addFromString('test.txt', 'test1234');
         $zip->addFromString('subdir/subtest.txt', 'subtest1234');
         $zip->close();
@@ -158,6 +169,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $remote_zip_path = $fake_deployment_builder->getRemoteZipPath();
         $remote_script_path = $fake_deployment_builder->getRemoteScriptPath();
         $remote_deploy_path = $fake_deployment_builder->getRemoteDeployPath();
+        $remote_public_path = $fake_deployment_builder->getRemotePublicPath();
 
         $this->assertSame(false, is_file("{$remote_base_path}/{$remote_zip_path}"));
         $this->assertSame(false, is_file("{$remote_base_path}/{$remote_script_path}"));
@@ -173,6 +185,10 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             'subtest1234',
             file_get_contents("{$remote_base_path}/{$remote_deploy_path}/live/subdir/subtest.txt")
         );
+        $this->assertSame(
+            'test1234',
+            file_get_contents("{$remote_base_path}/{$remote_public_path}/index.txt")
+        );
     }
 
     public function testDeployNoPrevious(): void {
@@ -180,6 +196,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $local_zip_path = $fake_deployment_builder->getLocalZipPath();
         $zip = new \ZipArchive();
         $zip->open($local_zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+        $zip->addFile(__DIR__.'/resources/Deploy.php', 'Deploy.php');
         $zip->addFromString('test.txt', 'test1234');
         $zip->addFromString('subdir/subtest.txt', 'subtest1234');
         $zip->close();
@@ -205,6 +222,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $remote_zip_path = $fake_deployment_builder->getRemoteZipPath();
         $remote_script_path = $fake_deployment_builder->getRemoteScriptPath();
         $remote_deploy_path = $fake_deployment_builder->getRemoteDeployPath();
+        $remote_public_path = $fake_deployment_builder->getRemotePublicPath();
 
         $this->assertSame(false, is_file("{$remote_base_path}/{$remote_zip_path}"));
         $this->assertSame(false, is_file("{$remote_base_path}/{$remote_script_path}"));
@@ -227,6 +245,10 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $this->assertSame(
             'subtest1234',
             file_get_contents("{$remote_base_path}/{$remote_deploy_path}/live/subdir/subtest.txt")
+        );
+        $this->assertSame(
+            'test1234',
+            file_get_contents("{$remote_base_path}/{$remote_public_path}/index.txt")
         );
     }
 
