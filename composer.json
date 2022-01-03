@@ -1,9 +1,9 @@
 {
     "name": "allestuetsmerweh/php-deploy",
-    "version": "0.0.8",
+    "version": "1.0.0",
     "type": "library",
-    "description": "Deploy your PHP code",
-    "keywords": ["PHP","Deploy","FTP","SFTP","FTPS"],
+    "description": "Deploy your PHP code to a shared hoster",
+    "keywords": ["PHP","deploy","upload","shared hoster","FTP","SFTP","FTPS"],
     "homepage": "https://github.com/allestuetsmerweh/php-deploy",
     "license": "MIT",
     "authors": [
@@ -19,15 +19,12 @@
             "php": "7.4"
         }
     },
-    "require-dev": {
+    "require": {
         "friendsofphp/php-cs-fixer": "^2.16",
         "league/flysystem": "^2.3",
         "nette/utils": "^3.2",
+        "php": ">=7.4",
         "phpunit/phpunit": "^9"
-    },
-    "require": {
-        "monolog/monolog": "^2.1",
-        "psr/log": "^1.1"
     },
     "scripts": {
         "fix": "php-cs-fixer fix --config=./.php_cs_config.php -v",
