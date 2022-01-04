@@ -50,8 +50,10 @@ abstract class AbstractDeploy {
             $filename = $item->getFileName();
             if ($filename !== '.' && $filename !== '..') {
                 $real_path = $item->getRealPath();
-                $relative_path = substr($real_path, strlen($real_build_path));
-                $zip->addFile($real_path, $relative_path);
+                if ($real_path && is_file($real_path)) {
+                    $relative_path = substr($real_path, strlen($real_build_path));
+                    $zip->addFile($real_path, $relative_path);
+                }
             }
         }
         $zip->close();
