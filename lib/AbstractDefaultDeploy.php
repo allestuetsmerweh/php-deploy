@@ -8,15 +8,19 @@ abstract class AbstractDefaultDeploy extends AbstractDeploy {
     protected $password;
 
     public function cli() {
-        $class = get_called_class();
+        $this->initFromEnv();
+        $this->buildAndDeploy();
+    }
+
+    public function initFromEnv() {
         $opts = $this->getCommandLineOptions();
         $environment = $opts['environment'];
         $username = $opts['username'];
         $password = $this->getEnvironmentVariable('PASSWORD');
+
         $this->environment = $environment;
         $this->username = $username;
         $this->password = $password;
-        $this->buildAndDeploy();
     }
 
     protected function getCommandLineOptions() {
