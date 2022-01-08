@@ -10,8 +10,8 @@ namespace PhpDeploy;
  * HTTP connection to invoke this file.
  */
 class RemoteDeployBootstrap {
-    const DEPLOY_PATH_OVERRIDE = '%%%DEPLOY_PATH_OVERRIDE%%%';
-    const PUBLIC_PATH_OVERRIDE = '%%%PUBLIC_PATH_OVERRIDE%%%';
+    public const DEPLOY_PATH_OVERRIDE = '%%%DEPLOY_PATH_OVERRIDE%%%';
+    public const PUBLIC_PATH_OVERRIDE = '%%%PUBLIC_PATH_OVERRIDE%%%';
 
     public function run() {
         try {
