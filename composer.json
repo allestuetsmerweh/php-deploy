@@ -1,6 +1,6 @@
 {
     "name": "allestuetsmerweh/php-deploy",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "type": "library",
     "description": "Deploy your PHP code to a shared hoster",
     "keywords": ["PHP","deploy","upload","shared hoster","FTP","SFTP","FTPS"],
@@ -20,7 +20,7 @@
         }
     },
     "require-dev": {
-        "friendsofphp/php-cs-fixer": "^2.16",
+        "friendsofphp/php-cs-fixer": "^3.4",
         "phpunit/phpunit": "^9"
     },
     "require": {
