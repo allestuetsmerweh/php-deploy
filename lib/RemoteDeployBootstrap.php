@@ -33,6 +33,11 @@ class RemoteDeployBootstrap {
             $previous_path = "{$deploy_path}/previous";
             $invalid_candidate_path = "{$deploy_path}/invalid_candidate_{$date}";
             $residual_candidate_path = "{$deploy_path}/residual_candidate_{$date}";
+            $error_log_path = "{$deploy_path}/deploy_errors.log";
+
+            ini_set('log_errors', 1);
+            ini_set('error_log', $error_log_path);
+            error_reporting(E_ALL);        
 
             // Run some checks
             if (!is_dir($deploy_path)) {
@@ -159,9 +164,6 @@ class RemoteDeployBootstrap {
 }
 
 if ($_SERVER['SCRIPT_FILENAME'] === realpath(__FILE__)) {
-    ini_set('log_errors', 1);
-    ini_set('error_log', __DIR__.'/deploy_error.log');
-    error_reporting(E_ALL);
     $remote_deploy_bootstrap = new RemoteDeployBootstrap();
     try {
         $remote_deploy_bootstrap->run();
