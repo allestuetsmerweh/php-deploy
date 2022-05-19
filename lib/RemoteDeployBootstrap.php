@@ -159,6 +159,9 @@ class RemoteDeployBootstrap {
 }
 
 if ($_SERVER['SCRIPT_FILENAME'] === realpath(__FILE__)) {
+    ini_set('log_errors', 1);
+    ini_set('error_log', __DIR__.'/deploy_error.log');
+    error_reporting(E_ALL);
     $remote_deploy_bootstrap = new RemoteDeployBootstrap();
     try {
         $remote_deploy_bootstrap->run();
