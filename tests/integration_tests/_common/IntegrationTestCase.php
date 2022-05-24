@@ -11,6 +11,7 @@ use PHPUnit\Framework\TestCase;
  */
 class IntegrationTestCase extends TestCase {
     private $test_server_process;
+    private $pipes;
 
     protected function setUp(): void {
         date_default_timezone_set('UTC');
@@ -21,9 +22,19 @@ class IntegrationTestCase extends TestCase {
 
     protected function tearDown(): void {
         if ($this->test_server_process !== null) {
+            stream_set_blocking($this->pipes[1], false);
+            stream_set_blocking($this->pipes[2], false);
             echo "Stopping server...\n";
             proc_terminate($this->test_server_process);
             echo "Stopped server.\n";
+            echo "\n";
+            echo "STDOUT:\n";
+            echo fread($this->pipes[1], 1024 * 1024);
+            echo "\n";
+            echo "STDERR:\n";
+            echo fread($this->pipes[2], 1024 * 1024);
+            echo "\n\n";
+            $this->test_server_process = null;
         }
     }
 
@@ -46,6 +57,7 @@ class IntegrationTestCase extends TestCase {
             $descriptorspec,
             $pipes,
         );
+        $this->pipes = $pipes;
         $is_server_up_path = "{$path}/is_server_up.html";
         file_put_contents($is_server_up_path, 'true');
         if (is_resource($this->test_server_process)) {

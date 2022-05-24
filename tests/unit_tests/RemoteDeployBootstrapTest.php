@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PhpDeploy\RemoteDeployBootstrap;
 
 require_once __DIR__.'/_common/UnitTestCase.php';
+require_once __DIR__.'/../fake/FakeLogger.php';
 
 class FakeRemoteDeployBootstrap extends RemoteDeployBootstrap {
     public $public_path = 'public_html';
@@ -81,6 +82,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(false, is_dir("{$private_deploy_path}/previous"));
 
         $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+        $fake_logger = new FakeLogger();
+        $fake_remote_deploy_bootstrap->logger = $fake_logger;
         $fake_remote_deploy_bootstrap->run();
 
         $this->assertSame(false, is_file($zip_path));
@@ -93,10 +96,37 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             '/\\/tmp\\/public_html$/',
             file_get_contents("{$private_deploy_path}/live/installed_to.txt")
         );
+
+        $this->assertSame([
+            ['info', 'Initialize...', []],
+            ['info', 'Run some checks...', []],
+            ['info', 'Unzip the uploaded file to candidate directory...', []],
+            ['info', 'Remove the zip file...', []],
+            ['info', 'Put the candidate live...', []],
+            ['info', 'Clean up...', []],
+            ['info', 'Install...', []],
+            ['info', 'Done.', []],
+        ], $fake_logger->messages);
+    }
+
+    public function testRunNoLogger(): void {
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+
+        try {
+            $fake_remote_deploy_bootstrap->run();
+            throw new \Exception('Exception expected');
+        } catch (\Throwable $th) {
+            $this->assertSame(
+                'RemoteDeployBootstrap::run needs a logger!',
+                $th->getMessage()
+            );
+        }
     }
 
     public function testRunInexistentPublicPath(): void {
         $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+        $fake_logger = new FakeLogger();
+        $fake_remote_deploy_bootstrap->logger = $fake_logger;
         $fake_remote_deploy_bootstrap->public_path = 'inexistent';
 
         try {
@@ -107,8 +137,11 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
                 '/^Did not find the public path \\(inexistent\\) in .*\\/tmp\\/public_html\\/ABCDEFGHIJ$/',
                 $th->getMessage()
             );
-            // throw $th;
         }
+
+        $this->assertSame([
+            ['info', 'Initialize...', []],
+        ], $fake_logger->messages);
     }
 
     public function testRunInexistentPrivateDirectory(): void {
@@ -136,6 +169,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
 
         try {
             $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+            $fake_logger = new FakeLogger();
+            $fake_remote_deploy_bootstrap->logger = $fake_logger;
             $fake_remote_deploy_bootstrap->run();
             throw new \Exception('Exception expected');
         } catch (\Throwable $th) {
@@ -150,6 +185,11 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(false, is_dir("{$private_deploy_path}/live"));
         $this->assertSame(false, is_dir("{$private_deploy_path}/previous"));
         $this->assertSame(true, is_file("{$public_deploy_path}/invalid_deploy_2020-03-16_09_00_00.zip"));
+
+        $this->assertSame([
+            ['info', 'Initialize...', []],
+            ['info', 'Run some checks...', []],
+        ], $fake_logger->messages);
     }
 
     public function testRunWithInvalidZip(): void {
@@ -176,6 +216,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
 
         try {
             $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+            $fake_logger = new FakeLogger();
+            $fake_remote_deploy_bootstrap->logger = $fake_logger;
             $fake_remote_deploy_bootstrap->run();
             throw new \Exception('Exception expected');
         } catch (\Throwable $th) {
@@ -194,6 +236,12 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(false, is_dir("{$private_deploy_path}/live"));
         $this->assertSame(false, is_dir("{$private_deploy_path}/previous"));
         $this->assertSame(true, is_file("{$public_deploy_path}/invalid_deploy_2020-03-16_09_00_00.zip"));
+
+        $this->assertSame([
+            ['info', 'Initialize...', []],
+            ['info', 'Run some checks...', []],
+            ['info', 'Unzip the uploaded file to candidate directory...', []],
+        ], $fake_logger->messages);
     }
 
     public function testRunWithResidualCandidate(): void {
@@ -224,6 +272,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(false, is_dir("{$private_deploy_path}/previous"));
 
         $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+        $fake_logger = new FakeLogger();
+        $fake_remote_deploy_bootstrap->logger = $fake_logger;
         $fake_remote_deploy_bootstrap->run();
 
         $this->assertSame(false, is_file($zip_path));
@@ -237,6 +287,18 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             '/\\/tmp\\/public_html$/',
             file_get_contents("{$private_deploy_path}/live/installed_to.txt")
         );
+
+        $this->assertSame([
+            ['info', 'Initialize...', []],
+            ['info', 'Run some checks...', []],
+            ['info', 'A previous deployment failed. Save residual candidate...', []],
+            ['info', 'Unzip the uploaded file to candidate directory...', []],
+            ['info', 'Remove the zip file...', []],
+            ['info', 'Put the candidate live...', []],
+            ['info', 'Clean up...', []],
+            ['info', 'Install...', []],
+            ['info', 'Done.', []],
+        ], $fake_logger->messages);
     }
 
     public function testRunWithPreviousDeployments(): void {
@@ -283,6 +345,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(true, is_dir("{$private_deploy_path}/previous"));
 
         $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+        $fake_logger = new FakeLogger();
+        $fake_remote_deploy_bootstrap->logger = $fake_logger;
         $fake_remote_deploy_bootstrap->run();
 
         $this->assertSame(false, is_file($zip_path));
@@ -311,6 +375,17 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             '/\\/tmp\\/public_html$/',
             file_get_contents("{$private_deploy_path}/live/installed_to.txt")
         );
+
+        $this->assertSame([
+            ['info', 'Initialize...', []],
+            ['info', 'Run some checks...', []],
+            ['info', 'Unzip the uploaded file to candidate directory...', []],
+            ['info', 'Remove the zip file...', []],
+            ['info', 'Put the candidate live...', []],
+            ['info', 'Clean up...', []],
+            ['info', 'Install...', []],
+            ['info', 'Done.', []],
+        ], $fake_logger->messages);
     }
 
     public function testRunWithoutDeployPhp(): void {
@@ -339,6 +414,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
 
         try {
             $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+            $fake_logger = new FakeLogger();
+            $fake_remote_deploy_bootstrap->logger = $fake_logger;
             $fake_remote_deploy_bootstrap->run();
             throw new \Exception('Exception expected');
         } catch (\Throwable $th) {
@@ -350,6 +427,16 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(false, is_dir("{$private_deploy_path}/candidate"));
         $this->assertSame(true, is_dir("{$private_deploy_path}/live"));
         $this->assertSame(false, is_dir("{$private_deploy_path}/previous"));
+
+        $this->assertSame([
+            ['info', 'Initialize...', []],
+            ['info', 'Run some checks...', []],
+            ['info', 'Unzip the uploaded file to candidate directory...', []],
+            ['info', 'Remove the zip file...', []],
+            ['info', 'Put the candidate live...', []],
+            ['info', 'Clean up...', []],
+            ['info', 'Install...', []],
+        ], $fake_logger->messages);
     }
 
     public function testRemoveR(): void {

@@ -2,11 +2,16 @@
 
 namespace PhpDeploy;
 
-abstract class AbstractDeploy {
+abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
     protected $local_build_folder_path;
     protected $local_zip_path;
     protected $flysystem_filesystem;
     protected $remote_public_random_deploy_dirname;
+
+    public function injectRemoteLogger($remote_logger) {
+        // The remote logger does not have the correct type, but it will work.
+        $this->logger = $remote_logger;
+    }
 
     abstract public function getRemotePublicPath();
 
@@ -22,12 +27,16 @@ abstract class AbstractDeploy {
     abstract public function install($public_path);
 
     public function build() {
+        $this->logger->info("Build...");
         $build_path = $this->getLocalBuildFolderPath();
         if (!is_dir($build_path)) {
             mkdir($build_path, 0755, true);
         }
+        $this->logger->info("Populate build folder...");
         $this->populateFolder();
+        $this->logger->info("Zip build folder...");
         $this->zipFolder();
+        $this->logger->info("Build done.");
     }
 
     abstract protected function populateFolder();
@@ -36,6 +45,7 @@ abstract class AbstractDeploy {
         $build_path = $this->getLocalBuildFolderPath();
         $real_build_path = realpath($build_path).'/';
         $zip_path = $this->getLocalZipPath();
+        $this->logger->info("Zipping build folder...");
         $zip = new \ZipArchive();
         $res = $zip->open($zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
         if (!$res) {
@@ -57,9 +67,11 @@ abstract class AbstractDeploy {
             }
         }
         $zip->close();
+        $this->logger->info("Zipping done.");
     }
 
     public function deploy() {
+        $this->logger->info("Deploy...");
         $local_zip_path = $this->getLocalZipPath();
         $remote_zip_path = $this->getRemoteZipPath();
         $local_script_path = __DIR__.'/RemoteDeployBootstrap.php';
@@ -68,6 +80,7 @@ abstract class AbstractDeploy {
         $remote_public_path = $this->getRemotePublicPath();
         $remote_fs = $this->getFlysystemFilesystemSingleton();
 
+        $this->logger->info("Upload...");
         try {
             $remote_fs->createDirectory(dirname($remote_zip_path));
         } catch (\Throwable $th) {
@@ -83,15 +96,27 @@ abstract class AbstractDeploy {
             $local_script_contents,
         );
         $remote_fs->write($remote_script_path, $remote_script_contents);
+        $this->logger->info("Upload done.");
 
         $base_url = $this->getRemotePublicUrl();
         $deploy_dirname = $this->getRemotePublicRandomDeployDirname();
         $url = "{$base_url}/{$deploy_dirname}/deploy.php";
 
+        $this->logger->info("Running deploy script...");
         $deploy_out = file_get_contents($url);
-        if ($deploy_out !== 'deploy:SUCCESS') {
+        $deploy_response = json_decode($deploy_out, true);
+        $remote_logs = $deploy_response['log'] ?? [];
+        foreach ($remote_logs as $remote_log) {
+            $level = $remote_log['level'];
+            $message = $this->getRemoteLogMessage($remote_log);
+            $context = $remote_log['context'] ?? [];
+            $this->logger->log($level, $message, $context);
+        }
+        $is_success = $deploy_response['success'] ?? false;
+        if (!$is_success) {
             throw new \Exception("Deployment failed: {$deploy_out}");
         }
+        $this->logger->info("Deploy done.");
     }
 
     private function getFlysystemFilesystemSingleton() {
@@ -102,6 +127,12 @@ abstract class AbstractDeploy {
     }
 
     abstract protected function getFlysystemFilesystem();
+
+    protected function getRemoteLogMessage($entry) {
+        $date = date('Y-m-d H:i:s.v', $entry['timestamp']);
+        $message = $entry['message'];
+        return "remote> {$date} {$message}";
+    }
 
     public function getLocalBuildFolderPath() {
         if ($this->local_build_folder_path !== null) {

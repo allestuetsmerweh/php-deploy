@@ -5,6 +5,7 @@ declare(strict_types=1);
 use PhpDeploy\AbstractDeploy;
 
 require_once __DIR__.'/_common/UnitTestCase.php';
+require_once __DIR__.'/../fake/FakeLogger.php';
 
 class FakeFlysystemEntry {
     public function __construct($path) {
@@ -49,9 +50,25 @@ class FakeFlysystemFilesystem {
 }
 
 class FakeDeploy extends AbstractDeploy {
-    public $deploy_php_output = 'deploy:SUCCESS';
+    use \Psr\Log\LoggerAwareTrait;
+
+    public $deploy_php_output;
     public $random_path_component = 'deterministically-random';
     public $installed_to;
+
+    public function __construct() {
+        $this->deploy_php_output = json_encode([
+            'success' => true,
+            'log' => [
+                [
+                    'level' => 'info',
+                    'timestamp' => 1234567890,
+                    'message' => 'something started...',
+                    'context' => [],
+                ],
+            ],
+        ]);
+    }
 
     public function getLocalTmpDir() {
         return __DIR__.'/tmp/local/local_tmp';
@@ -121,6 +138,8 @@ class FakeDeploy extends AbstractDeploy {
 final class AbstractDeployTest extends UnitTestCase {
     public function testBuildAndDeploy(): void {
         $fake_deployment_builder = new FakeDeploy();
+        $fake_logger = new FakeLogger();
+        $fake_deployment_builder->setLogger($fake_logger);
 
         $fake_deployment_builder->buildAndDeploy();
 
@@ -150,22 +169,104 @@ final class AbstractDeployTest extends UnitTestCase {
 
         $fs = $fake_deployment_builder->testOnlyGetFlysystemFilesystem();
         $this->assertSame(false, $fs->has_thrown_create_directory_error);
+
+        $this->assertSame([
+            ['info', 'Build...', []],
+            ['info', 'Populate build folder...', []],
+            ['info', 'Zip build folder...', []],
+            ['info', 'Zipping build folder...', []],
+            ['info', 'Zipping done.', []],
+            ['info', 'Build done.', []],
+            ['info', 'Deploy...', []],
+            ['info', 'Upload...', []],
+            ['info', 'Upload done.', []],
+            ['info', 'Running deploy script...', []],
+            ['info', 'remote> 2009-02-13 23:31:30.000 something started...', []],
+            ['info', 'Deploy done.', []],
+        ], $fake_logger->messages);
     }
 
     public function testBuildAndDeployWithRemoteError(): void {
         $fake_deployment_builder = new FakeDeploy();
-        $fake_deployment_builder->deploy_php_output = 'some exception';
+        $fake_logger = new FakeLogger();
+        $fake_deployment_builder->setLogger($fake_logger);
+        $deploy_php_output = json_encode([
+            'error' => [
+                'type' => 'Exception',
+                'message' => 'some exception',
+            ],
+            'log' => [
+                [
+                    'level' => 'error',
+                    'timestamp' => 1234567890,
+                    'message' => 'something failed...',
+                    'context' => [],
+                ],
+                [
+                    'level' => 'invalid',
+                    'timestamp' => 1234567891,
+                    'message' => 'something is invalid...',
+                    'context' => [],
+                ],
+            ],
+        ]);
+        $fake_deployment_builder->deploy_php_output = $deploy_php_output;
 
         try {
             $fake_deployment_builder->buildAndDeploy();
             throw new \Exception('Exception expected');
         } catch (\Throwable $th) {
-            $this->assertSame('Deployment failed: some exception', $th->getMessage());
+            $this->assertSame("Deployment failed: {$deploy_php_output}", $th->getMessage());
+
+            $this->assertSame([
+                ['info', 'Build...', []],
+                ['info', 'Populate build folder...', []],
+                ['info', 'Zip build folder...', []],
+                ['info', 'Zipping build folder...', []],
+                ['info', 'Zipping done.', []],
+                ['info', 'Build done.', []],
+                ['info', 'Deploy...', []],
+                ['info', 'Upload...', []],
+                ['info', 'Upload done.', []],
+                ['info', 'Running deploy script...', []],
+                ['error', 'remote> 2009-02-13 23:31:30.000 something failed...', []],
+                ['invalid', 'remote> 2009-02-13 23:31:31.000 something is invalid...', []],
+            ], $fake_logger->messages);
+        }
+    }
+
+    public function testBuildAndDeployWithRemoteNonJsonError(): void {
+        $fake_deployment_builder = new FakeDeploy();
+        $fake_logger = new FakeLogger();
+        $fake_deployment_builder->setLogger($fake_logger);
+        $deploy_php_output = 'non-JSON exception!';
+        $fake_deployment_builder->deploy_php_output = $deploy_php_output;
+
+        try {
+            $fake_deployment_builder->buildAndDeploy();
+            throw new \Exception('Exception expected');
+        } catch (\Throwable $th) {
+            $this->assertSame("Deployment failed: {$deploy_php_output}", $th->getMessage());
+
+            $this->assertSame([
+                ['info', 'Build...', []],
+                ['info', 'Populate build folder...', []],
+                ['info', 'Zip build folder...', []],
+                ['info', 'Zipping build folder...', []],
+                ['info', 'Zipping done.', []],
+                ['info', 'Build done.', []],
+                ['info', 'Deploy...', []],
+                ['info', 'Upload...', []],
+                ['info', 'Upload done.', []],
+                ['info', 'Running deploy script...', []],
+            ], $fake_logger->messages);
         }
     }
 
     public function testDeployRemoteDeployDirectoryAlreadyExists(): void {
         $fake_deployment_builder = new FakeDeploy();
+        $fake_logger = new FakeLogger();
+        $fake_deployment_builder->setLogger($fake_logger);
         $remote_zip_path = $fake_deployment_builder->getRemoteZipPath();
         $remote_path = __DIR__."/tmp/remote";
         $public_path = dirname("{$remote_path}/{$remote_zip_path}");
@@ -177,6 +278,21 @@ final class AbstractDeployTest extends UnitTestCase {
 
         $fs = $fake_deployment_builder->testOnlyGetFlysystemFilesystem();
         $this->assertSame(true, $fs->has_thrown_create_directory_error);
+
+        $this->assertSame([
+            ['info', 'Build...', []],
+            ['info', 'Populate build folder...', []],
+            ['info', 'Zip build folder...', []],
+            ['info', 'Zipping build folder...', []],
+            ['info', 'Zipping done.', []],
+            ['info', 'Build done.', []],
+            ['info', 'Deploy...', []],
+            ['info', 'Upload...', []],
+            ['info', 'Upload done.', []],
+            ['info', 'Running deploy script...', []],
+            ['info', 'remote> 2009-02-13 23:31:30.000 something started...', []],
+            ['info', 'Deploy done.', []],
+        ], $fake_logger->messages);
     }
 
     public function testGetLocalBuildFolderPath(): void {

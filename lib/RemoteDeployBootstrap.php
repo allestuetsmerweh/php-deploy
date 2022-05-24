@@ -13,9 +13,14 @@ class RemoteDeployBootstrap {
     public const DEPLOY_PATH_OVERRIDE = '%%%DEPLOY_PATH_OVERRIDE%%%';
     public const PUBLIC_PATH_OVERRIDE = '%%%PUBLIC_PATH_OVERRIDE%%%';
 
+    public $logger;
+
     public function run() {
+        if (!$this->logger) {
+            throw new \Exception("RemoteDeployBootstrap::run needs a logger!");
+        }
         try {
-            // Constants
+            $this->logger->info('Initialize...');
             $date = $this->getDateString();
             $public_deploy_path = $this->getPublicDeployPath();
             $public_path = $this->getPublicPath();
@@ -37,15 +42,15 @@ class RemoteDeployBootstrap {
 
             ini_set('log_errors', 1);
             ini_set('error_log', $error_log_path);
-            error_reporting(E_ALL);        
+            error_reporting(E_ALL);
 
-            // Run some checks
+            $this->logger->info('Run some checks...');
             if (!is_dir($deploy_path)) {
                 throw new \Exception("Deploy path ({$deploy_path}) does not exist");
             }
 
-            // Save residual candidate when a previous deployment failed
             if (is_dir($candidate_path)) {
+                $this->logger->info('A previous deployment failed. Save residual candidate...');
                 if (!rename($candidate_path, $residual_candidate_path)) {
                     // @codeCoverageIgnoreStart
                     // Reason: Hard to test!
@@ -54,16 +59,17 @@ class RemoteDeployBootstrap {
                 }
             }
 
-            // Unzip the uploaded file to candidate directory.
+            $this->logger->info('Unzip the uploaded file to candidate directory...');
             mkdir($candidate_path);
             $zip = new \ZipArchive();
             $zip->open($zip_path);
             $zip->extractTo($candidate_path);
             $zip->close();
 
+            $this->logger->info('Remove the zip file...');
             unlink($zip_path);
 
-            // Put the candidate live
+            $this->logger->info('Put the candidate live...');
             if (is_dir($previous_path)) {
                 $this->remove_r($previous_path);
             }
@@ -82,13 +88,13 @@ class RemoteDeployBootstrap {
                 // @codeCoverageIgnoreEnd
             }
 
-            // Clean up
+            $this->logger->info('Clean up...');
             if (is_file($php_path)) {
                 unlink($php_path);
             }
             rmdir(dirname($php_path));
 
-            // Install
+            $this->logger->info('Install...');
             $install_script_path = "{$live_path}/Deploy.php";
             if (!is_file($install_script_path)) {
                 throw new \Exception("Deploy.php not found");
@@ -101,10 +107,12 @@ class RemoteDeployBootstrap {
                 // @codeCoverageIgnoreEnd
             }
             $deploy = new \Deploy();
+            if (method_exists('\Deploy', 'injectRemoteLogger')) {
+                $deploy->injectRemoteLogger($this->logger);
+            }
             $install_path = $base_path.'/'.$this->getPublicPath();
             $deploy->install($install_path);
-
-            echo "deploy:SUCCESS";
+            $this->logger->info('Done.');
         } catch (\Throwable $th) {
             // Keep the zip (for debugging purposes).
             if (isset($zip_path) && is_file($zip_path) && isset($invalid_zip_path)) {
@@ -163,11 +171,42 @@ class RemoteDeployBootstrap {
     }
 }
 
+class RemoteDeployLogger {
+    public $messages = [];
+
+    public function __call($name, $arguments) {
+        if (count($arguments) > 0) {
+            $this->log($name, $arguments[0], $arguments[1] ?? []);
+        }
+    }
+
+    public function log($level, $message, array $context = []) {
+        $this->messages[] = [
+            'level' => $level,
+            'timestamp' => microtime(true),
+            'message' => $message,
+            'context' => $context,
+        ];
+    }
+}
+
 if ($_SERVER['SCRIPT_FILENAME'] === realpath(__FILE__)) {
-    $remote_deploy_bootstrap = new RemoteDeployBootstrap();
     try {
+        $remote_deploy_bootstrap = new RemoteDeployBootstrap();
+        $logger = new RemoteDeployLogger();
+        $remote_deploy_bootstrap->logger = $logger;
         $remote_deploy_bootstrap->run();
+        echo json_encode([
+            'success' => true,
+            'log' => $logger->messages ?? [],
+        ]);
     } catch (\Throwable $th) {
-        echo "deploy:ERROR:{$th->getMessage()}";
+        echo json_encode([
+            'error' => [
+                'type' => get_class($th),
+                'message' => $th->getMessage(),
+            ],
+            'log' => $logger->messages ?? [],
+        ]);
     }
 }
