@@ -2,7 +2,7 @@
 
 namespace PhpDeploy;
 
-abstract class AbstractDefaultDeploy extends AbstractDeploy {
+abstract class AbstractDefaultDeploy extends AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
     protected $environment;
     protected $username;
     protected $password;

@@ -5,8 +5,11 @@ declare(strict_types=1);
 use PhpDeploy\AbstractDeploy;
 
 require_once __DIR__.'/_common/IntegrationTestCase.php';
+require_once __DIR__.'/../fake/FakeLogger.php';
 
 class FakeIntegrationDeploy extends AbstractDeploy {
+    use \Psr\Log\LoggerAwareTrait;
+
     public function getLocalTmpDir() {
         $tmp_path = __DIR__.'/tmp/local/local_tmp';
         if (!is_dir($tmp_path)) {
@@ -16,10 +19,13 @@ class FakeIntegrationDeploy extends AbstractDeploy {
     }
 
     protected function populateFolder() {
+        $fs = new Symfony\Component\Filesystem\Filesystem();
         $path = $this->getLocalBuildFolderPath();
-        copy(__DIR__.'/resources/Deploy.php', "{$path}/Deploy.php");
+
+        $fs->copy(__DIR__.'/resources/DependentDeploy.php', "{$path}/Deploy.php", true);
+        $fs->mirror(__DIR__.'/../../vendor', "{$path}/vendor");
         file_put_contents("{$path}/test.txt", 'test1234');
-        mkdir("{$path}/subdir/");
+        $fs->mkdir("{$path}/subdir/");
         file_put_contents("{$path}/subdir/subtest.txt", 'subtest1234');
     }
 
@@ -28,6 +34,12 @@ class FakeIntegrationDeploy extends AbstractDeploy {
             __DIR__.'/tmp/test_server/'
         );
         return new League\Flysystem\Filesystem($adapter);
+    }
+
+    protected function getRemoteLogMessage($entry) {
+        // Omit the date, which is not mocked (i.e. the live date)
+        $message = $entry['message'];
+        return "remote> {$message}";
     }
 
     public function getRemotePublicPath() {
@@ -52,7 +64,7 @@ class FakeIntegrationDeploy extends AbstractDeploy {
     }
 
     public function install($public_path) {
-        // unused, see ./tests/integration_tests/resources/Deploy.php
+        // unused, see ./tests/integration_tests/resources/*Deploy.php
     }
 }
 
@@ -63,6 +75,8 @@ class FakeIntegrationDeploy extends AbstractDeploy {
 final class AbstractDeployIntegrationTest extends IntegrationTestCase {
     public function testBuild(): void {
         $fake_deployment_builder = new FakeIntegrationDeploy();
+        $fake_logger = new FakeLogger();
+        $fake_deployment_builder->setLogger($fake_logger);
 
         $fake_deployment_builder->build();
 
@@ -83,6 +97,15 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $this->assertSame(true, $zip->locateName('test.txt') !== false);
         $this->assertSame(true, $zip->locateName('subdir/subtest.txt') !== false);
         $this->assertSame(false, $zip->locateName('test') !== false);
+
+        $this->assertSame([
+            ['info', 'Build...', []],
+            ['info', 'Populate build folder...', []],
+            ['info', 'Zip build folder...', []],
+            ['info', 'Zipping build folder...', []],
+            ['info', 'Zipping done.', []],
+            ['info', 'Build done.', []],
+        ], $fake_logger->messages);
     }
 
     public function testBuildAndDeploy(): void {
@@ -112,6 +135,8 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $this->startTestServer('127.0.0.1', 8081, $public_path);
 
         $fake_deployment_builder = new FakeIntegrationDeploy();
+        $fake_logger = new FakeLogger();
+        $fake_deployment_builder->setLogger($fake_logger);
 
         $fake_deployment_builder->buildAndDeploy();
 
@@ -147,14 +172,40 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             'test1234',
             file_get_contents("{$remote_base_path}/{$remote_public_path}/index.txt")
         );
+
+        $this->assertSame([
+            ['info', 'Build...', []],
+            ['info', 'Populate build folder...', []],
+            ['info', 'Zip build folder...', []],
+            ['info', 'Zipping build folder...', []],
+            ['info', 'Zipping done.', []],
+            ['info', 'Build done.', []],
+            ['info', 'Deploy...', []],
+            ['info', 'Upload...', []],
+            ['info', 'Upload done.', []],
+            ['info', 'Running deploy script...', []],
+            ['info', 'remote> Initialize...', []],
+            ['info', 'remote> Run some checks...', []],
+            ['info', 'remote> Unzip the uploaded file to candidate directory...', []],
+            ['info', 'remote> Remove the zip file...', []],
+            ['info', 'remote> Put the candidate live...', []],
+            ['info', 'remote> Clean up...', []],
+            ['info', 'remote> Install...', []],
+            ['info', 'remote> From install method: Copying stuff...', []],
+            ['info', 'remote> Done.', []],
+            ['info', 'Deploy done.', []],
+        ], $fake_logger->messages);
     }
 
     public function testFreshDeploy(): void {
         $fake_deployment_builder = new FakeIntegrationDeploy();
+        $fake_logger = new FakeLogger();
+        $fake_deployment_builder->setLogger($fake_logger);
+
         $local_zip_path = $fake_deployment_builder->getLocalZipPath();
         $zip = new \ZipArchive();
         $zip->open($local_zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
-        $zip->addFile(__DIR__.'/resources/Deploy.php', 'Deploy.php');
+        $zip->addFile(__DIR__.'/resources/StandaloneDeploy.php', 'Deploy.php');
         $zip->addFromString('test.txt', 'test1234');
         $zip->addFromString('subdir/subtest.txt', 'subtest1234');
         $zip->close();
@@ -189,14 +240,33 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             'test1234',
             file_get_contents("{$remote_base_path}/{$remote_public_path}/index.txt")
         );
+
+        $this->assertSame([
+            ['info', 'Deploy...', []],
+            ['info', 'Upload...', []],
+            ['info', 'Upload done.', []],
+            ['info', 'Running deploy script...', []],
+            ['info', 'remote> Initialize...', []],
+            ['info', 'remote> Run some checks...', []],
+            ['info', 'remote> Unzip the uploaded file to candidate directory...', []],
+            ['info', 'remote> Remove the zip file...', []],
+            ['info', 'remote> Put the candidate live...', []],
+            ['info', 'remote> Clean up...', []],
+            ['info', 'remote> Install...', []],
+            ['info', 'remote> Done.', []],
+            ['info', 'Deploy done.', []],
+        ], $fake_logger->messages);
     }
 
     public function testDeployNoPrevious(): void {
         $fake_deployment_builder = new FakeIntegrationDeploy();
+        $fake_logger = new FakeLogger();
+        $fake_deployment_builder->setLogger($fake_logger);
+
         $local_zip_path = $fake_deployment_builder->getLocalZipPath();
         $zip = new \ZipArchive();
         $zip->open($local_zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
-        $zip->addFile(__DIR__.'/resources/Deploy.php', 'Deploy.php');
+        $zip->addFile(__DIR__.'/resources/StandaloneDeploy.php', 'Deploy.php');
         $zip->addFromString('test.txt', 'test1234');
         $zip->addFromString('subdir/subtest.txt', 'subtest1234');
         $zip->close();
@@ -250,6 +320,22 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             'test1234',
             file_get_contents("{$remote_base_path}/{$remote_public_path}/index.txt")
         );
+
+        $this->assertSame([
+            ['info', 'Deploy...', []],
+            ['info', 'Upload...', []],
+            ['info', 'Upload done.', []],
+            ['info', 'Running deploy script...', []],
+            ['info', 'remote> Initialize...', []],
+            ['info', 'remote> Run some checks...', []],
+            ['info', 'remote> Unzip the uploaded file to candidate directory...', []],
+            ['info', 'remote> Remove the zip file...', []],
+            ['info', 'remote> Put the candidate live...', []],
+            ['info', 'remote> Clean up...', []],
+            ['info', 'remote> Install...', []],
+            ['info', 'remote> Done.', []],
+            ['info', 'Deploy done.', []],
+        ], $fake_logger->messages);
     }
 
     public function testGetLocalBuildFolderPath(): void {

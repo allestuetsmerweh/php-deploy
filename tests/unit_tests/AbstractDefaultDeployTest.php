@@ -7,6 +7,8 @@ use PhpDeploy\AbstractDefaultDeploy;
 require_once __DIR__.'/_common/UnitTestCase.php';
 
 class FakeDefaultDeploy extends AbstractDefaultDeploy {
+    use \Psr\Log\LoggerAwareTrait;
+
     public $command_line_options = [];
     public $environment_variables = [];
 
