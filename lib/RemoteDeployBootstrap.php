@@ -108,7 +108,10 @@ class RemoteDeployBootstrap {
             }
             $deploy = new \Deploy();
             if (method_exists('\Deploy', 'injectRemoteLogger')) {
+                // @codeCoverageIgnoreStart
+                // Reason: Hard to test!
                 $deploy->injectRemoteLogger($this->logger);
+                // @codeCoverageIgnoreEnd
             }
             $install_path = $base_path.'/'.$this->getPublicPath();
             $deploy->install($install_path);
