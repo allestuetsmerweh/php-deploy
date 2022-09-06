@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-use PhpDeploy\AbstractDefaultDeploy;
+namespace PhpDeploy\Tests\UnitTests;
 
-require_once __DIR__.'/_common/UnitTestCase.php';
+use PhpDeploy\AbstractDefaultDeploy;
+use PhpDeploy\Tests\UnitTests\Common\UnitTestCase;
 
 class FakeDefaultDeploy extends AbstractDefaultDeploy {
     use \Psr\Log\LoggerAwareTrait;
@@ -53,6 +54,7 @@ class FakeDefaultDeploy extends AbstractDefaultDeploy {
 
 /**
  * @internal
+ *
  * @covers \PhpDeploy\AbstractDefaultDeploy
  */
 final class AbstractDefaultDeployTest extends UnitTestCase {

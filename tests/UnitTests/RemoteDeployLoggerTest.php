@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
-use PhpDeploy\RemoteDeployLogger;
+namespace PhpDeploy\Tests\UnitTests;
 
-require_once __DIR__.'/_common/UnitTestCase.php';
+use PhpDeploy\RemoteDeployLogger;
+use PhpDeploy\Tests\UnitTests\Common\UnitTestCase;
 
 /**
  * @internal
+ *
  * @covers \PhpDeploy\RemoteDeployLogger
  */
 final class RemoteDeployLoggerTest extends UnitTestCase {

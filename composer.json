@@ -1,6 +1,6 @@
 {
     "name": "allestuetsmerweh/php-deploy",
-    "version": "2.0.1",
+    "version": "2.0.2",
     "type": "library",
     "description": "Deploy your PHP code to a shared hoster",
     "keywords": ["PHP","deploy","upload","shared hoster","FTP","SFTP","FTPS"],
@@ -34,8 +34,8 @@
         "fix": "php-cs-fixer fix --config=./.php_cs_config.php -v",
         "fixdiff": "php-cs-fixer fix --config=./.php_cs_config.php -v --dry-run --diff",
         "test": "phpunit tests && echo \"\n\nOpen the HTML test coverage in a web browser:\n\n    file://$(pwd)/php-coverage/html-coverage/index.html\n\n\"",
-        "integration_tests": "phpunit tests/integration_tests && echo \"\n\nOpen the HTML test coverage in a web browser:\n\n    file://$(pwd)/php-coverage/html-coverage/index.html\n\n\"",
-        "unit_tests": "phpunit tests/unit_tests && echo \"\n\nOpen the HTML test coverage in a web browser:\n\n    file://$(pwd)/php-coverage/html-coverage/index.html\n\n\""
+        "integration_tests": "phpunit tests/IntegrationTests && echo \"\n\nOpen the HTML test coverage in a web browser:\n\n    file://$(pwd)/php-coverage/html-coverage/index.html\n\n\"",
+        "unit_tests": "phpunit tests/UnitTests && echo \"\n\nOpen the HTML test coverage in a web browser:\n\n    file://$(pwd)/php-coverage/html-coverage/index.html\n\n\""
     },
     "archive": {
         "exclude": [
@@ -53,6 +53,11 @@
     "autoload": {
         "psr-4": {
             "PhpDeploy\\": "lib"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+          "PhpDeploy\\Tests\\": "tests/"
         }
     }
 }

@@ -2,10 +2,13 @@
 
 declare(strict_types=1);
 
+namespace PhpDeploy\Tests\UnitTests\Common;
+
 use PHPUnit\Framework\TestCase;
 
 /**
  * @internal
+ *
  * @coversNothing
  */
 class UnitTestCase extends TestCase {

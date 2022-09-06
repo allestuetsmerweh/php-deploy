@@ -2,11 +2,12 @@
 
 declare(strict_types=1);
 
+namespace PhpDeploy\Tests\UnitTests;
+
 use PhpDeploy\AbstractDeploy;
 use PhpDeploy\RemoteDeployLogger;
-
-require_once __DIR__.'/_common/UnitTestCase.php';
-require_once __DIR__.'/../fake/FakeLogger.php';
+use PhpDeploy\Tests\Fake\FakeLogger;
+use PhpDeploy\Tests\UnitTests\Common\UnitTestCase;
 
 class FakeFlysystemEntry {
     public function __construct($path) {
@@ -138,6 +139,7 @@ class FakeDeploy extends AbstractDeploy {
 
 /**
  * @internal
+ *
  * @covers \PhpDeploy\AbstractDeploy
  */
 final class AbstractDeployTest extends UnitTestCase {
@@ -176,7 +178,7 @@ final class AbstractDeployTest extends UnitTestCase {
         $this->assertSame(true, is_dir(dirname($local_zip_path)));
         $this->assertSame(true, is_file($local_zip_path));
 
-        $zip = new ZipArchive();
+        $zip = new \ZipArchive();
         $res = $zip->open($local_zip_path);
         $this->assertSame(true, $res);
         $this->assertSame(true, $zip->locateName('test.txt') !== false);

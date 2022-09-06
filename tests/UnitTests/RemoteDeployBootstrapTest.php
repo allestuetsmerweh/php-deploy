@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-use PhpDeploy\RemoteDeployBootstrap;
+namespace PhpDeploy\Tests\UnitTests;
 
-require_once __DIR__.'/_common/UnitTestCase.php';
-require_once __DIR__.'/../fake/FakeLogger.php';
+use PhpDeploy\RemoteDeployBootstrap;
+use PhpDeploy\Tests\Fake\FakeLogger;
+use PhpDeploy\Tests\UnitTests\Common\UnitTestCase;
 
 class FakeRemoteDeployBootstrap extends RemoteDeployBootstrap {
     public $public_path = 'public_html';
@@ -53,6 +54,7 @@ class FakeRemoteDeployBootstrap extends RemoteDeployBootstrap {
 
 /**
  * @internal
+ *
  * @covers \PhpDeploy\RemoteDeployBootstrap
  */
 final class RemoteDeployBootstrapTest extends UnitTestCase {

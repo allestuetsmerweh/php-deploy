@@ -183,7 +183,7 @@ class RemoteDeployLogger {
         }
     }
 
-    public function log($level, $message, array $context = []) {
+    public function log($level, string|\Stringable $message, array $context = []): void {
         $this->messages[] = [
             'level' => $level,
             'timestamp' => microtime(true),
