@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
+namespace PhpDeploy\Tests\IntegrationTests\Common;
+
 use Nette\Utils\FileSystem;
 use PHPUnit\Framework\TestCase;
 
 /**
  * @internal
+ *
  * @coversNothing
  */
 class IntegrationTestCase extends TestCase {

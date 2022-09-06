@@ -2,13 +2,15 @@
 
 declare(strict_types=1);
 
+namespace PhpDeploy\Tests\UnitTests;
+
 use PhpDeploy\RemoteDeployLogger;
 use PhpDeploy\RemoteDeployLoggerWrapper;
-
-require_once __DIR__.'/_common/UnitTestCase.php';
+use PhpDeploy\Tests\UnitTests\Common\UnitTestCase;
 
 /**
  * @internal
+ *
  * @covers \PhpDeploy\RemoteDeployLoggerWrapper
  */
 final class RemoteDeployLoggerWrapperTest extends UnitTestCase {

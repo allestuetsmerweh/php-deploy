@@ -2,10 +2,11 @@
 
 declare(strict_types=1);
 
-use PhpDeploy\AbstractDeploy;
+namespace PhpDeploy\Tests\IntegrationTests;
 
-require_once __DIR__.'/_common/IntegrationTestCase.php';
-require_once __DIR__.'/../fake/FakeLogger.php';
+use PhpDeploy\AbstractDeploy;
+use PhpDeploy\Tests\Fake\FakeLogger;
+use PhpDeploy\Tests\IntegrationTests\Common\IntegrationTestCase;
 
 class FakeIntegrationDeploy extends AbstractDeploy {
     use \Psr\Log\LoggerAwareTrait;
@@ -19,7 +20,7 @@ class FakeIntegrationDeploy extends AbstractDeploy {
     }
 
     protected function populateFolder() {
-        $fs = new Symfony\Component\Filesystem\Filesystem();
+        $fs = new \Symfony\Component\Filesystem\Filesystem();
         $path = $this->getLocalBuildFolderPath();
 
         $fs->copy(__DIR__.'/resources/DependentDeploy.php', "{$path}/Deploy.php", true);
@@ -30,10 +31,10 @@ class FakeIntegrationDeploy extends AbstractDeploy {
     }
 
     protected function getFlysystemFilesystem() {
-        $adapter = new League\Flysystem\Local\LocalFilesystemAdapter(
+        $adapter = new \League\Flysystem\Local\LocalFilesystemAdapter(
             __DIR__.'/tmp/test_server/'
         );
-        return new League\Flysystem\Filesystem($adapter);
+        return new \League\Flysystem\Filesystem($adapter);
     }
 
     protected function getRemoteLogMessage($entry) {
@@ -64,12 +65,13 @@ class FakeIntegrationDeploy extends AbstractDeploy {
     }
 
     public function install($public_path) {
-        // unused, see ./tests/integration_tests/resources/*Deploy.php
+        // unused, see ./tests/IntegrationTests/resources/*Deploy.php
     }
 }
 
 /**
  * @internal
+ *
  * @covers \PhpDeploy\AbstractDeploy
  */
 final class AbstractDeployIntegrationTest extends IntegrationTestCase {
@@ -91,7 +93,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $this->assertSame(true, is_dir(dirname($local_zip_path)));
         $this->assertSame(true, is_file($local_zip_path));
 
-        $zip = new ZipArchive();
+        $zip = new \ZipArchive();
         $res = $zip->open($local_zip_path);
         $this->assertSame(true, $res);
         $this->assertSame(true, $zip->locateName('test.txt') !== false);
