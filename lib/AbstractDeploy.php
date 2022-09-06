@@ -9,8 +9,8 @@ abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
     protected $remote_public_random_deploy_dirname;
 
     public function injectRemoteLogger($remote_logger) {
-        // The remote logger does not have the correct type, but it will work.
-        $this->logger = $remote_logger;
+        $remote_logger_wrapper = new RemoteDeployLoggerWrapper($remote_logger);
+        $this->logger = $remote_logger_wrapper;
     }
 
     abstract public function getRemotePublicPath();

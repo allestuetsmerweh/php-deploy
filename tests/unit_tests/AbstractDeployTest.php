@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use PhpDeploy\AbstractDeploy;
+use PhpDeploy\RemoteDeployLogger;
 
 require_once __DIR__.'/_common/UnitTestCase.php';
 require_once __DIR__.'/../fake/FakeLogger.php';
@@ -129,6 +130,10 @@ class FakeDeploy extends AbstractDeploy {
     public function testOnlyGetFlysystemFilesystem() {
         return $this->getFlysystemFilesystem();
     }
+
+    public function testOnlyJustLogSomething() {
+        return $this->logger->info('something');
+    }
 }
 
 /**
@@ -136,6 +141,20 @@ class FakeDeploy extends AbstractDeploy {
  * @covers \PhpDeploy\AbstractDeploy
  */
 final class AbstractDeployTest extends UnitTestCase {
+    public function testInjectRemoteLogger(): void {
+        $remote_deploy_logger = new RemoteDeployLogger();
+        $fake_deployment_builder = new FakeDeploy();
+        $fake_deployment_builder->injectRemoteLogger($remote_deploy_logger);
+        $fake_deployment_builder->testOnlyJustLogSomething();
+        $this->assertSame([
+            '[info] something',
+        ], array_map(function ($message) {
+            $level = $message['level'];
+            $message = $message['message'];
+            return "[{$level}] {$message}";
+        }, $remote_deploy_logger->messages));
+    }
+
     public function testBuildAndDeploy(): void {
         $fake_deployment_builder = new FakeDeploy();
         $fake_logger = new FakeLogger();
