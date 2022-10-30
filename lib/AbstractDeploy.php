@@ -13,6 +13,17 @@ abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
         $this->logger = $remote_logger_wrapper;
     }
 
+    public function getArgs() {
+        return [
+            'remote_public_random_deploy_dirname' => $this->remote_public_random_deploy_dirname,
+        ];
+    }
+
+    public function injectArgs($args) {
+        $this->remote_public_random_deploy_dirname =
+            $args['remote_public_random_deploy_dirname'] ?? null;
+    }
+
     abstract public function getRemotePublicPath();
 
     abstract public function getRemotePublicUrl();
@@ -91,8 +102,8 @@ abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
         fclose($local_zip_stream);
         $local_script_contents = file_get_contents($local_script_path);
         $remote_script_contents = str_replace(
-            ['%%%DEPLOY_PATH_OVERRIDE%%%', '%%%PUBLIC_PATH_OVERRIDE%%%'],
-            [$remote_deploy_path, $remote_public_path],
+            ['%%%DEPLOY_PATH_OVERRIDE%%%', '%%%PUBLIC_PATH_OVERRIDE%%%', '%%%ARGS_OVERRIDE%%%'],
+            [$remote_deploy_path, $remote_public_path, json_encode($this->getArgs())],
             $local_script_contents,
         );
         $remote_fs->write($remote_script_path, $remote_script_contents);

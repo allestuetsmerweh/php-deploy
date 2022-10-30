@@ -194,6 +194,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'remote> Clean up...', []],
             ['info', 'remote> Install...', []],
             ['info', 'remote> From install method: Copying stuff...', []],
+            ['info', 'remote> Copied args? 1', []],
             ['info', 'remote> Done.', []],
             ['info', 'Deploy done.', []],
         ], $fake_logger->messages);
@@ -241,6 +242,10 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $this->assertSame(
             'test1234',
             file_get_contents("{$remote_base_path}/{$remote_public_path}/index.txt")
+        );
+        $this->assertSame(
+            'args_copied_correctly=1',
+            file_get_contents("{$remote_base_path}/{$remote_public_path}/index.log")
         );
 
         $this->assertSame([

@@ -157,6 +157,13 @@ final class AbstractDeployTest extends UnitTestCase {
         }, $remote_deploy_logger->messages));
     }
 
+    public function testInjectArgs(): void {
+        $fake_deployment_builder = new FakeDeploy();
+        $fake_deployment_builder->injectArgs(['remote_public_random_deploy_dirname' => 'test']);
+
+        $this->assertSame('test', $fake_deployment_builder->testOnlyGetRemotePublicRandomDeployDirname());
+    }
+
     public function testBuildAndDeploy(): void {
         $fake_deployment_builder = new FakeDeploy();
         $fake_logger = new FakeLogger();
