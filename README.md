@@ -7,7 +7,7 @@ The only requirement on the deployment destination server is PHP and [the ZIP ex
 
 - `composer require allestuetsmerweh/php-deploy`
 - Create a file `Deploy.php`, containing a class implementing `AbstractDefaultDeploy` (or `AbstractDeploy`)
-- Run `PASSWORD=$DEPLOY_PASSWORD php ./Deploy.php --environment=prod --username=$DEPLOY_USERNAME` to deploy
+- Run `PASSWORD=$DEPLOY_PASSWORD php ./Deploy.php --target=host1 --environment=prod --username=$DEPLOY_USERNAME` to deploy
 
 ## Filesystem structure on the deployment destination server
 
@@ -60,7 +60,7 @@ jobs:
       env:
         USERNAME: ${{ secrets.DEPLOY_USERNAME }}
         PASSWORD: ${{ secrets.DEPLOY_PASSWORD }}
-      run: php ./Deploy.php --environment=prod --username="$USERNAME"
+      run: php ./Deploy.php --target=host1 --environment=prod --username="$USERNAME"
 ```
 
 ## CI on bitbucket.org
@@ -94,5 +94,5 @@ pipelines:
           - docker-php-ext-install zip
           - curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
           - composer install
-          - PASSWORD=$DEPLOY_PASSWORD php ./Deploy.php --environment=prod --username=$DEPLOY_USERNAME
+          - PASSWORD=$DEPLOY_PASSWORD php ./Deploy.php --target=host1 --environment=prod --username=$DEPLOY_USERNAME
 ```
