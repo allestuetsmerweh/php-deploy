@@ -7,6 +7,18 @@ abstract class AbstractDefaultDeploy extends AbstractDeploy implements \Psr\Log\
     protected $username;
     protected $password;
 
+    public function getArgs() {
+        return [
+            ...parent::getArgs(),
+            'environment' => $this->environment,
+        ];
+    }
+
+    public function injectArgs($args) {
+        parent::injectArgs($args);
+        $this->environment = $args['environment'] ?? null;
+    }
+
     public function cli() {
         $this->initFromEnv();
         $this->buildAndDeploy();

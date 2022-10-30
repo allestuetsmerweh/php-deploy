@@ -43,6 +43,36 @@ class FakeRemoteDeployBootstrap extends RemoteDeployBootstrap {
         return parent::getPublicPath();
     }
 
+    public function testOnlyGetArgs() {
+        return parent::getArgs();
+    }
+
+    public function testOnlyGetPublicDeployPath() {
+        return parent::getPublicDeployPath();
+    }
+
+    public function testOnlyGetOverrideOrDefault($override, $default) {
+        return parent::getOverrideOrDefault($override, $default);
+    }
+}
+
+class FakeRemoteDeployBootstrapWithOverrides extends RemoteDeployBootstrap {
+    public $DEPLOY_PATH_OVERRIDE = 'private_files/deploy/override';
+    public $PUBLIC_PATH_OVERRIDE = 'public_html/override';
+    public $ARGS_OVERRIDE = '{"just":"test"}';
+
+    public function testOnlyGetDeployPath() {
+        return parent::getDeployPath();
+    }
+
+    public function testOnlyGetPublicPath() {
+        return parent::getPublicPath();
+    }
+
+    public function testOnlyGetArgs() {
+        return parent::getArgs();
+    }
+
     public function testOnlyGetPublicDeployPath() {
         return parent::getPublicDeployPath();
     }
@@ -107,6 +137,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Put the candidate live...', []],
             ['info', 'Clean up...', []],
             ['info', 'Install...', []],
+            ['info', 'Logger injected', []],
+            ['info', 'Args injected: []', []],
             ['info', 'Done.', []],
         ], $fake_logger->messages);
     }
@@ -299,6 +331,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Put the candidate live...', []],
             ['info', 'Clean up...', []],
             ['info', 'Install...', []],
+            ['info', 'Logger injected', []],
+            ['info', 'Args injected: []', []],
             ['info', 'Done.', []],
         ], $fake_logger->messages);
     }
@@ -386,6 +420,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Put the candidate live...', []],
             ['info', 'Clean up...', []],
             ['info', 'Install...', []],
+            ['info', 'Logger injected', []],
+            ['info', 'Args injected: []', []],
             ['info', 'Done.', []],
         ], $fake_logger->messages);
     }
@@ -492,6 +528,13 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame('', $public_path);
     }
 
+    public function testGetArgs(): void {
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+        $args = $fake_remote_deploy_bootstrap->testOnlyGetArgs();
+
+        $this->assertSame([], $args);
+    }
+
     public function testGetPublicDeployPath(): void {
         $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
         $public_deploy_path = $fake_remote_deploy_bootstrap->testOnlyGetPublicDeployPath();
@@ -508,6 +551,48 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
 
     public function testGetOverrideOrDefaultReturnDefault(): void {
         $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+        $result = $fake_remote_deploy_bootstrap->testOnlyGetOverrideOrDefault('%%%OVERRIDE%%%', 'default');
+
+        $this->assertSame('default', $result);
+    }
+
+    public function testGetDeployPathWithOverrides(): void {
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides();
+        $deploy_path = $fake_remote_deploy_bootstrap->testOnlyGetDeployPath();
+
+        $this->assertSame('private_files/deploy/override', $deploy_path);
+    }
+
+    public function testGetPublicPathWithOverrides(): void {
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides();
+        $public_path = $fake_remote_deploy_bootstrap->testOnlyGetPublicPath();
+
+        $this->assertSame('public_html/override', $public_path);
+    }
+
+    public function testGetArgsWithOverrides(): void {
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides();
+        $args = $fake_remote_deploy_bootstrap->testOnlyGetArgs();
+
+        $this->assertSame(['just' => 'test'], $args);
+    }
+
+    public function testGetPublicDeployPathWithOverrides(): void {
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides();
+        $public_deploy_path = $fake_remote_deploy_bootstrap->testOnlyGetPublicDeployPath();
+
+        $this->assertMatchesRegularExpression('/\\/lib$/', $public_deploy_path);
+    }
+
+    public function testGetOverrideOrDefaultReturnOverrideWithOverrides(): void {
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides();
+        $result = $fake_remote_deploy_bootstrap->testOnlyGetOverrideOrDefault('override', 'default');
+
+        $this->assertSame('override', $result);
+    }
+
+    public function testGetOverrideOrDefaultReturnDefaultWithOverrides(): void {
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides();
         $result = $fake_remote_deploy_bootstrap->testOnlyGetOverrideOrDefault('%%%OVERRIDE%%%', 'default');
 
         $this->assertSame('default', $result);

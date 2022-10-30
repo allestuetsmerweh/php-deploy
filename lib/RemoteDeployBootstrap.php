@@ -10,8 +10,9 @@ namespace PhpDeploy;
  * HTTP connection to invoke this file.
  */
 class RemoteDeployBootstrap {
-    public const DEPLOY_PATH_OVERRIDE = '%%%DEPLOY_PATH_OVERRIDE%%%';
-    public const PUBLIC_PATH_OVERRIDE = '%%%PUBLIC_PATH_OVERRIDE%%%';
+    public $DEPLOY_PATH_OVERRIDE = '%%%DEPLOY_PATH_OVERRIDE%%%';
+    public $PUBLIC_PATH_OVERRIDE = '%%%PUBLIC_PATH_OVERRIDE%%%';
+    public $ARGS_OVERRIDE = '%%%ARGS_OVERRIDE%%%';
 
     public $logger;
 
@@ -108,10 +109,10 @@ class RemoteDeployBootstrap {
             }
             $deploy = new \Deploy();
             if (method_exists('\Deploy', 'injectRemoteLogger')) {
-                // @codeCoverageIgnoreStart
-                // Reason: Hard to test!
                 $deploy->injectRemoteLogger($this->logger);
-                // @codeCoverageIgnoreEnd
+            }
+            if (method_exists('\Deploy', 'injectArgs')) {
+                $deploy->injectArgs($this->getArgs());
             }
             $install_path = $base_path.'/'.$this->getPublicPath();
             $deploy->install($install_path);
@@ -154,11 +155,16 @@ class RemoteDeployBootstrap {
     }
 
     protected function getDeployPath() {
-        return $this->getOverrideOrDefault(self::DEPLOY_PATH_OVERRIDE, '');
+        return $this->getOverrideOrDefault($this->DEPLOY_PATH_OVERRIDE, '');
     }
 
     protected function getPublicPath() {
-        return $this->getOverrideOrDefault(self::PUBLIC_PATH_OVERRIDE, '');
+        return $this->getOverrideOrDefault($this->PUBLIC_PATH_OVERRIDE, '');
+    }
+
+    protected function getArgs() {
+        $args_json = $this->getOverrideOrDefault($this->ARGS_OVERRIDE, '{}');
+        return json_decode($args_json, true) ?? [];
     }
 
     protected function getPublicDeployPath() {
