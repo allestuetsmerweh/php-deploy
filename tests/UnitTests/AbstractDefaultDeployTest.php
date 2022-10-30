@@ -59,6 +59,14 @@ class FakeDefaultDeploy extends AbstractDefaultDeploy {
         return $this->password;
     }
 
+    public function testOnlyGetTarget() {
+        return $this->target;
+    }
+
+    public function testOnlySetTarget($new_target) {
+        $this->target = $new_target;
+    }
+
     public function testOnlyGetEnvironment() {
         return $this->environment;
     }
@@ -84,10 +92,12 @@ class FakeDefaultDeploy extends AbstractDefaultDeploy {
 final class AbstractDefaultDeployTest extends UnitTestCase {
     public function testGetArgs(): void {
         $fake_default_deploy = new FakeDefaultDeploy();
+        $fake_default_deploy->testOnlySetTarget('host1');
         $fake_default_deploy->testOnlySetEnvironment('unit-test');
         $fake_default_deploy->testOnlySetRemotePublicRandomDeployDirname('just/for/test');
         $this->assertSame([
             'remote_public_random_deploy_dirname' => 'just/for/test',
+            'target' => 'host1',
             'environment' => 'unit-test',
         ], $fake_default_deploy->getArgs());
     }
@@ -111,9 +121,9 @@ final class AbstractDefaultDeployTest extends UnitTestCase {
         } catch (\Throwable $th) {
             $correct_message = (
                 // PHP 8
-                $th->getMessage() === 'Undefined array key "environment"'
+                $th->getMessage() === 'Undefined array key "target"'
                 // PHP 7
-                || $th->getMessage() === 'Undefined index: environment'
+                || $th->getMessage() === 'Undefined index: target'
             );
             $this->assertSame(true, $correct_message);
             $this->assertSame(null, $fake_default_deploy->testOnlyGetEnvironment());
@@ -125,6 +135,7 @@ final class AbstractDefaultDeployTest extends UnitTestCase {
     public function testCli(): void {
         $fake_default_deploy = new FakeDefaultDeploy();
         $fake_default_deploy->command_line_options = [
+            'target' => 'host1',
             'environment' => 'prod',
             'username' => 'user@host.tld',
         ];
@@ -135,6 +146,7 @@ final class AbstractDefaultDeployTest extends UnitTestCase {
         $fake_default_deploy->cli();
 
         $this->assertSame(true, $fake_default_deploy->build_and_deploy_called);
+        $this->assertSame('host1', $fake_default_deploy->testOnlyGetTarget());
         $this->assertSame('prod', $fake_default_deploy->testOnlyGetEnvironment());
         $this->assertSame('user@host.tld', $fake_default_deploy->testOnlyGetUsername());
         $this->assertSame('secret', $fake_default_deploy->testOnlyGetPassword());
