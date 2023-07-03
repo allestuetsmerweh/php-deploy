@@ -3,6 +3,9 @@
 namespace PhpDeploy;
 
 abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
+    public const MAX_DEPLOY_SCRIPT_ATTEMPTS = 3;
+    public const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36';
+
     protected $local_build_folder_path;
     protected $local_zip_path;
     protected $flysystem_filesystem;
@@ -114,7 +117,7 @@ abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
         $url = "{$base_url}/{$deploy_dirname}/deploy.php";
 
         $this->logger->info("Running deploy script...");
-        $deploy_out = file_get_contents($url);
+        $deploy_out = $this->invokeDeployScript($url);
         $deploy_response = json_decode($deploy_out, true);
         $remote_logs = $deploy_response['log'] ?? [];
         foreach ($remote_logs as $remote_log) {
@@ -128,6 +131,29 @@ abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
             throw new \Exception("Deployment failed: {$deploy_out}");
         }
         $this->logger->info("Deploy done.");
+    }
+
+    private function invokeDeployScript($url) {
+        $errors = [];
+        for ($i = 0; $i < self::MAX_DEPLOY_SCRIPT_ATTEMPTS; $i++) {
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_USERAGENT, self::USER_AGENT);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 60);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 120);
+            $result = curl_exec($ch);
+            $errno = curl_errno($ch);
+            $error = curl_error($ch);
+            curl_close($ch);
+            if (!$errno) {
+                return $result;
+            }
+            $url = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+            $errors[] = "{$error} ({$errno})";
+        }
+        throw new \Exception("Error invoking deploy script: ".implode(' / ', $errors));
     }
 
     private function getFlysystemFilesystemSingleton() {
