@@ -107,7 +107,13 @@ class FakeDeploy extends AbstractDeploy {
         $private_path = __DIR__."/tmp/remote/private_files/{$this->random_path_component}";
         if (!is_dir($private_path)) {
             mkdir($private_path, 0777, true);
-            file_put_contents("{$private_path}/deploy.php", $this->deploy_php_output);
+            if ($this->deploy_php_output) {
+                file_put_contents("{$private_path}/deploy.php", $this->deploy_php_output);
+            } else {
+                if (is_file("{$private_path}/deploy.php")) {
+                    unlink("{$private_path}/deploy.php");
+                }
+            }
         }
         return "private_files";
     }
@@ -276,6 +282,33 @@ final class AbstractDeployTest extends UnitTestCase {
         } catch (\Throwable $th) {
             $this->assertSame("Deployment failed: {$deploy_php_output}", $th->getMessage());
 
+            $this->assertSame([
+                ['info', 'Build...', []],
+                ['info', 'Populate build folder...', []],
+                ['info', 'Zip build folder...', []],
+                ['info', 'Zipping build folder...', []],
+                ['info', 'Zipping done.', []],
+                ['info', 'Build done.', []],
+                ['info', 'Deploy...', []],
+                ['info', 'Upload...', []],
+                ['info', 'Upload done.', []],
+                ['info', 'Running deploy script...', []],
+            ], $fake_logger->messages);
+        }
+    }
+
+    public function testBuildAndDeployWithRemoteFatalError(): void {
+        $fake_deployment_builder = new FakeDeploy();
+        $fake_logger = new FakeLogger();
+        $fake_deployment_builder->setLogger($fake_logger);
+        $fake_deployment_builder->deploy_php_output = null;
+
+        try {
+            $fake_deployment_builder->buildAndDeploy();
+            throw new \Exception('Exception expected');
+        } catch (\Throwable $th) {
+            $this->assertMatchesRegularExpression(
+                '/^Error invoking deploy script: /', $th->getMessage());
             $this->assertSame([
                 ['info', 'Build...', []],
                 ['info', 'Populate build folder...', []],
