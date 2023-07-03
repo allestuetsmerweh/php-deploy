@@ -201,6 +201,9 @@ class RemoteDeployLogger {
 
 if ($_SERVER['SCRIPT_FILENAME'] === realpath(__FILE__)) {
     try {
+        set_time_limit(4000);
+        ignore_user_abort(true);
+
         $remote_deploy_bootstrap = new RemoteDeployBootstrap();
         $logger = new RemoteDeployLogger();
         $remote_deploy_bootstrap->logger = $logger;
