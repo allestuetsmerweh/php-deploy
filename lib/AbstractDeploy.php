@@ -4,7 +4,6 @@ namespace PhpDeploy;
 
 abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
     public const MAX_DEPLOY_SCRIPT_ATTEMPTS = 3;
-    public const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36';
 
     protected $local_build_folder_path;
     protected $local_zip_path;
@@ -142,8 +141,8 @@ abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
         for ($i = 0; $i < self::MAX_DEPLOY_SCRIPT_ATTEMPTS; $i++) {
             $ch = curl_init();
             curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_HEADER, false);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_USERAGENT, self::USER_AGENT);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
             curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 60);
             curl_setopt($ch, CURLOPT_TIMEOUT, 120);
@@ -154,7 +153,6 @@ abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
             if (!$errno) {
                 return $result;
             }
-            $url = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
             $errors[] = "{$error} ({$errno})";
         }
         throw new \Exception("Error invoking deploy script: ".implode(' / ', $errors));
