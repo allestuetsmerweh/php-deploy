@@ -126,6 +126,10 @@ class FakeDeploy extends AbstractDeploy {
         $this->installed_to = $public_path;
     }
 
+    protected function afterDeploy() {
+        $this->logger->info('afterDeploy');
+    }
+
     public function testOnlyGetRandomPathComponent() {
         return parent::getRandomPathComponent();
     }
@@ -217,6 +221,7 @@ final class AbstractDeployTest extends UnitTestCase {
             ['info', 'Running deploy script...', []],
             ['info', 'remote> 2009-02-13 23:31:30.000 something started...', []],
             ['info', 'Deploy done.', []],
+            ['info', 'afterDeploy', []],
         ], $fake_logger->messages);
     }
 
@@ -353,6 +358,7 @@ final class AbstractDeployTest extends UnitTestCase {
             ['info', 'Running deploy script...', []],
             ['info', 'remote> 2009-02-13 23:31:30.000 something started...', []],
             ['info', 'Deploy done.', []],
+            ['info', 'afterDeploy', []],
         ], $fake_logger->messages);
     }
 
