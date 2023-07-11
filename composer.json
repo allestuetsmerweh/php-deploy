@@ -1,6 +1,6 @@
 {
     "name": "allestuetsmerweh/php-deploy",
-    "version": "2.5.0",
+    "version": "2.6.0",
     "type": "library",
     "description": "Deploy your PHP code to a shared hoster",
     "keywords": ["PHP","deploy","upload","shared hoster","FTP","SFTP","FTPS"],

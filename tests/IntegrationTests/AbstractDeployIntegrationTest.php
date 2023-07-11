@@ -68,8 +68,9 @@ class FakeIntegrationDeploy extends AbstractDeploy {
         // unused, see ./tests/IntegrationTests/resources/*Deploy.php
     }
 
-    protected function afterDeploy() {
-        $this->logger->info('afterDeploy');
+    protected function afterDeploy($result) {
+        $json_result = json_encode($result);
+        $this->logger->info("afterDeploy {$json_result}");
     }
 }
 
@@ -200,8 +201,8 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'remote> From install method: Copying stuff...', []],
             ['info', 'remote> Copied args? 1', []],
             ['info', 'remote> Done.', []],
-            ['info', 'Deploy done.', []],
-            ['info', 'afterDeploy', []],
+            ['info', 'Deploy done with result: {"file":"Deploy.php","result":"dependent-deploy-result"}', []],
+            ['info', 'afterDeploy {"file":"Deploy.php","result":"dependent-deploy-result"}', []],
         ], $fake_logger->messages);
     }
 
@@ -222,7 +223,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         mkdir($public_path, 0777, true);
         $this->startTestServer('127.0.0.1', 8081, $public_path);
 
-        $fake_deployment_builder->deploy();
+        $result = $fake_deployment_builder->deploy();
 
         $remote_base_path = __DIR__.'/tmp/test_server/';
         $remote_zip_path = $fake_deployment_builder->getRemoteZipPath();
@@ -266,8 +267,13 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'remote> Clean up...', []],
             ['info', 'remote> Install...', []],
             ['info', 'remote> Done.', []],
-            ['info', 'Deploy done.', []],
+            ['info', 'Deploy done with result: {"file":"Deploy.php","result":"standalone-deploy-result"}', []],
         ], $fake_logger->messages);
+
+        $this->assertSame([
+            'file' => 'Deploy.php',
+            'result' => 'standalone-deploy-result',
+        ], $result);
     }
 
     public function testDeployNoPrevious(): void {
@@ -298,7 +304,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         mkdir($public_path, 0777, true);
         $this->startTestServer('127.0.0.1', 8081, $public_path);
 
-        $fake_deployment_builder->deploy();
+        $result = $fake_deployment_builder->deploy();
 
         $remote_base_path = __DIR__.'/tmp/test_server/';
         $remote_zip_path = $fake_deployment_builder->getRemoteZipPath();
@@ -346,8 +352,13 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'remote> Clean up...', []],
             ['info', 'remote> Install...', []],
             ['info', 'remote> Done.', []],
-            ['info', 'Deploy done.', []],
+            ['info', 'Deploy done with result: {"file":"Deploy.php","result":"standalone-deploy-result"}', []],
         ], $fake_logger->messages);
+
+        $this->assertSame([
+            'file' => 'Deploy.php',
+            'result' => 'standalone-deploy-result',
+        ], $result);
     }
 
     public function testGetLocalBuildFolderPath(): void {

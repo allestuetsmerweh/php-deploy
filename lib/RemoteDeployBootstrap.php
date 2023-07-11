@@ -115,8 +115,9 @@ class RemoteDeployBootstrap {
                 $deploy->injectArgs($this->getArgs());
             }
             $install_path = $base_path.'/'.$this->getPublicPath();
-            $deploy->install($install_path);
+            $result = $deploy->install($install_path);
             $this->logger->info('Done.');
+            return $result;
         } catch (\Throwable $th) {
             // Keep the zip (for debugging purposes).
             if (isset($zip_path) && is_file($zip_path) && isset($invalid_zip_path)) {
@@ -207,9 +208,10 @@ if ($_SERVER['SCRIPT_FILENAME'] === realpath(__FILE__)) {
         $remote_deploy_bootstrap = new RemoteDeployBootstrap();
         $logger = new RemoteDeployLogger();
         $remote_deploy_bootstrap->logger = $logger;
-        $remote_deploy_bootstrap->run();
+        $result = $remote_deploy_bootstrap->run();
         echo json_encode([
             'success' => true,
+            'result' => $result,
             'log' => $logger->messages ?? [],
         ]);
     } catch (\Throwable $th) {

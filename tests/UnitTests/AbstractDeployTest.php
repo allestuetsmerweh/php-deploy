@@ -61,6 +61,9 @@ class FakeDeploy extends AbstractDeploy {
     public function __construct() {
         $this->deploy_php_output = json_encode([
             'success' => true,
+            'result' => [
+                'deploy_result' => 'fake-deploy-result',
+            ],
             'log' => [
                 [
                     'level' => 'info',
@@ -124,10 +127,12 @@ class FakeDeploy extends AbstractDeploy {
 
     public function install($public_path) {
         $this->installed_to = $public_path;
+        return ['install_result' => 'fake-install-result'];
     }
 
-    protected function afterDeploy() {
-        $this->logger->info('afterDeploy');
+    protected function afterDeploy($result) {
+        $json_result = json_encode($result);
+        $this->logger->info("afterDeploy {$json_result}");
     }
 
     public function testOnlyGetRandomPathComponent() {
@@ -220,8 +225,8 @@ final class AbstractDeployTest extends UnitTestCase {
             ['info', 'Upload done.', []],
             ['info', 'Running deploy script...', []],
             ['info', 'remote> 2009-02-13 23:31:30.000 something started...', []],
-            ['info', 'Deploy done.', []],
-            ['info', 'afterDeploy', []],
+            ['info', 'Deploy done with result: {"deploy_result":"fake-deploy-result"}', []],
+            ['info', 'afterDeploy {"deploy_result":"fake-deploy-result"}', []],
         ], $fake_logger->messages);
     }
 
@@ -357,8 +362,8 @@ final class AbstractDeployTest extends UnitTestCase {
             ['info', 'Upload done.', []],
             ['info', 'Running deploy script...', []],
             ['info', 'remote> 2009-02-13 23:31:30.000 something started...', []],
-            ['info', 'Deploy done.', []],
-            ['info', 'afterDeploy', []],
+            ['info', 'Deploy done with result: {"deploy_result":"fake-deploy-result"}', []],
+            ['info', 'afterDeploy {"deploy_result":"fake-deploy-result"}', []],
         ], $fake_logger->messages);
     }
 

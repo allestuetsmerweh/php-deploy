@@ -34,11 +34,11 @@ abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
 
     public function buildAndDeploy() {
         $this->build();
-        $this->deploy();
-        $this->afterDeploy();
+        $result = $this->deploy();
+        $this->afterDeploy($result);
     }
 
-    protected function afterDeploy() {
+    protected function afterDeploy($result) {
     }
 
     abstract public function install($public_path);
@@ -133,7 +133,10 @@ abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
         if (!$is_success) {
             throw new \Exception("Deployment failed: {$deploy_out}");
         }
-        $this->logger->info("Deploy done.");
+        $result = $deploy_response['result'] ?? null;
+        $json_result = json_encode($result);
+        $this->logger->info("Deploy done with result: {$json_result}");
+        return $result;
     }
 
     private function invokeDeployScript($url) {

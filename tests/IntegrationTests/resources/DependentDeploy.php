@@ -31,5 +31,9 @@ class Deploy {
         $is_match = (bool) preg_match('/^[\\S]{24}$/', $this->remote_public_random_deploy_dirname);
         $this->logger->info("Copied args? {$is_match}");
         $fs->copy("{$private_path}/test.txt", "{$public_path}/index.txt", true);
+        return [
+            'file' => basename(__FILE__),
+            'result' => 'dependent-deploy-result',
+        ];
     }
 }
