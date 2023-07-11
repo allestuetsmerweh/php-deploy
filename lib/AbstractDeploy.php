@@ -36,6 +36,10 @@ abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
     public function buildAndDeploy() {
         $this->build();
         $this->deploy();
+        $this->afterDeploy();
+    }
+
+    protected function afterDeploy() {
     }
 
     abstract public function install($public_path);

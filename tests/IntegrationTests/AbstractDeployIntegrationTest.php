@@ -67,6 +67,10 @@ class FakeIntegrationDeploy extends AbstractDeploy {
     public function install($public_path) {
         // unused, see ./tests/IntegrationTests/resources/*Deploy.php
     }
+
+    protected function afterDeploy() {
+        $this->logger->info('afterDeploy');
+    }
 }
 
 /**
@@ -197,6 +201,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'remote> Copied args? 1', []],
             ['info', 'remote> Done.', []],
             ['info', 'Deploy done.', []],
+            ['info', 'afterDeploy', []],
         ], $fake_logger->messages);
     }
 
