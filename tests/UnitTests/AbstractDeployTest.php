@@ -135,6 +135,10 @@ class FakeDeploy extends AbstractDeploy {
         $this->logger->info("afterDeploy {$json_result}");
     }
 
+    public function testOnlyHumanFileSize($size, $unit = '') {
+        return parent::humanFileSize($size, $unit);
+    }
+
     public function testOnlyGetRandomPathComponent() {
         return parent::getRandomPathComponent();
     }
@@ -221,13 +225,15 @@ final class AbstractDeployTest extends UnitTestCase {
             ['info', 'Zipping done.', []],
             ['info', 'Build done.', []],
             ['info', 'Deploy...', []],
-            ['info', 'Upload...', []],
+            ['info', 'Upload (244 bytes)...', []],
             ['info', 'Upload done.', []],
-            ['info', 'Running deploy script...', []],
+            ['info', 'Running deploy script (file://***/tmp/remote/private_files/deterministically-random/deploy.php)...', []],
             ['info', 'remote> 2009-02-13 23:31:30.000 something started...', []],
             ['info', 'Deploy done with result: {"deploy_result":"fake-deploy-result"}', []],
             ['info', 'afterDeploy {"deploy_result":"fake-deploy-result"}', []],
-        ], $fake_logger->messages);
+        ], array_map(function ($entry) {
+            return [$entry[0], str_replace(__DIR__, '***', $entry[1]), $entry[2]];
+        }, $fake_logger->messages));
     }
 
     public function testBuildAndDeployWithRemoteError(): void {
@@ -270,12 +276,14 @@ final class AbstractDeployTest extends UnitTestCase {
                 ['info', 'Zipping done.', []],
                 ['info', 'Build done.', []],
                 ['info', 'Deploy...', []],
-                ['info', 'Upload...', []],
+                ['info', 'Upload (244 bytes)...', []],
                 ['info', 'Upload done.', []],
-                ['info', 'Running deploy script...', []],
+                ['info', 'Running deploy script (file://***/tmp/remote/private_files/deterministically-random/deploy.php)...', []],
                 ['error', 'remote> 2009-02-13 23:31:30.000 something failed...', []],
                 ['invalid', 'remote> 2009-02-13 23:31:31.000 something is invalid...', []],
-            ], $fake_logger->messages);
+            ], array_map(function ($entry) {
+                return [$entry[0], str_replace(__DIR__, '***', $entry[1]), $entry[2]];
+            }, $fake_logger->messages));
         }
     }
 
@@ -300,10 +308,12 @@ final class AbstractDeployTest extends UnitTestCase {
                 ['info', 'Zipping done.', []],
                 ['info', 'Build done.', []],
                 ['info', 'Deploy...', []],
-                ['info', 'Upload...', []],
+                ['info', 'Upload (244 bytes)...', []],
                 ['info', 'Upload done.', []],
-                ['info', 'Running deploy script...', []],
-            ], $fake_logger->messages);
+                ['info', 'Running deploy script (file://***/tmp/remote/private_files/deterministically-random/deploy.php)...', []],
+            ], array_map(function ($entry) {
+                return [$entry[0], str_replace(__DIR__, '***', $entry[1]), $entry[2]];
+            }, $fake_logger->messages));
         }
     }
 
@@ -327,10 +337,12 @@ final class AbstractDeployTest extends UnitTestCase {
                 ['info', 'Zipping done.', []],
                 ['info', 'Build done.', []],
                 ['info', 'Deploy...', []],
-                ['info', 'Upload...', []],
+                ['info', 'Upload (244 bytes)...', []],
                 ['info', 'Upload done.', []],
-                ['info', 'Running deploy script...', []],
-            ], $fake_logger->messages);
+                ['info', 'Running deploy script (file://***/tmp/remote/private_files/deterministically-random/deploy.php)...', []],
+            ], array_map(function ($entry) {
+                return [$entry[0], str_replace(__DIR__, '***', $entry[1]), $entry[2]];
+            }, $fake_logger->messages));
         }
     }
 
@@ -358,13 +370,28 @@ final class AbstractDeployTest extends UnitTestCase {
             ['info', 'Zipping done.', []],
             ['info', 'Build done.', []],
             ['info', 'Deploy...', []],
-            ['info', 'Upload...', []],
+            ['info', 'Upload (244 bytes)...', []],
             ['info', 'Upload done.', []],
-            ['info', 'Running deploy script...', []],
+            ['info', 'Running deploy script (file://***/tmp/remote/private_files/deterministically-random/deploy.php)...', []],
             ['info', 'remote> 2009-02-13 23:31:30.000 something started...', []],
             ['info', 'Deploy done with result: {"deploy_result":"fake-deploy-result"}', []],
             ['info', 'afterDeploy {"deploy_result":"fake-deploy-result"}', []],
-        ], $fake_logger->messages);
+        ], array_map(function ($entry) {
+            return [$entry[0], str_replace(__DIR__, '***', $entry[1]), $entry[2]];
+        }, $fake_logger->messages));
+    }
+
+    public function testHumanFileSize(): void {
+        $fake_deployment_builder = new FakeDeploy();
+
+        $this->assertSame("0 bytes", $fake_deployment_builder->testOnlyHumanFileSize(0));
+        $this->assertSame("1 bytes", $fake_deployment_builder->testOnlyHumanFileSize(1));
+        $this->assertSame("1'023 bytes", $fake_deployment_builder->testOnlyHumanFileSize(1023));
+        $this->assertSame("1.00 KB", $fake_deployment_builder->testOnlyHumanFileSize(1024));
+        $this->assertSame("1'024.00 KB", $fake_deployment_builder->testOnlyHumanFileSize(1048575));
+        $this->assertSame("1.00 MB", $fake_deployment_builder->testOnlyHumanFileSize(1048576));
+        $this->assertSame("1'024.00 MB", $fake_deployment_builder->testOnlyHumanFileSize(1073741823));
+        $this->assertSame("1.00 GB", $fake_deployment_builder->testOnlyHumanFileSize(1073741824));
     }
 
     public function testGetLocalBuildFolderPath(): void {

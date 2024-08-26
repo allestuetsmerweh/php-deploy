@@ -4,7 +4,7 @@
 require_once __DIR__.'/vendor/autoload.php';
 
 class Deploy {
-    use \Psr\Log\LoggerAwareTrait;
+    use Psr\Log\LoggerAwareTrait;
 
     // In real-world usages, \Deploy extends PhpDeploy\AbstractDeploy, which
     // implements this function.
@@ -25,10 +25,10 @@ class Deploy {
     }
 
     public function install($public_path) {
-        $fs = new \Symfony\Component\Filesystem\Filesystem();
+        $fs = new Symfony\Component\Filesystem\Filesystem();
         $private_path = __DIR__;
         $this->logger->info("From install method: Copying stuff...");
-        $is_match = (bool) preg_match('/^[\\S]{24}$/', $this->remote_public_random_deploy_dirname);
+        $is_match = (bool) preg_match('/^[\S]{24}$/', $this->remote_public_random_deploy_dirname);
         $this->logger->info("Copied args? {$is_match}");
         $fs->copy("{$private_path}/test.txt", "{$public_path}/index.txt", true);
         return [

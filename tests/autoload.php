@@ -2,7 +2,7 @@
 
 include_once __DIR__.'/../vendor/autoload.php';
 
-$classLoader = new \Composer\Autoload\ClassLoader();
+$classLoader = new Composer\Autoload\ClassLoader();
 $classLoader->addPsr4('PhpDeploy\\', __DIR__.'/../lib', true);
-$classLoader->addPsr4('PhpDeploy\\Tests\\', __DIR__, true);
+$classLoader->addPsr4('PhpDeploy\Tests\\', __DIR__, true);
 $classLoader->register();

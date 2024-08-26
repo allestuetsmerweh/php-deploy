@@ -125,7 +125,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(false, is_dir("{$private_deploy_path}/previous"));
 
         $this->assertMatchesRegularExpression(
-            '/\\/tmp\\/public_html$/',
+            '/\/tmp\/public_html$/',
             file_get_contents("{$private_deploy_path}/live/installed_to.txt")
         );
 
@@ -168,7 +168,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             throw new \Exception('Exception expected');
         } catch (\Throwable $th) {
             $this->assertMatchesRegularExpression(
-                '/^Did not find the public path \\(inexistent\\) in .*\\/tmp\\/public_html\\/ABCDEFGHIJ$/',
+                '/^Did not find the public path \(inexistent\) in .*\/tmp\/public_html\/ABCDEFGHIJ$/',
                 $th->getMessage()
             );
         }
@@ -209,7 +209,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             throw new \Exception('Exception expected');
         } catch (\Throwable $th) {
             $this->assertMatchesRegularExpression(
-                '/Deploy path \\(.*\\/tmp\\/private_files\\/deploy\\) does not exist/',
+                '/Deploy path \(.*\/tmp\/private_files\/deploy\) does not exist/',
                 $th->getMessage()
             );
         }
@@ -318,7 +318,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(false, is_dir("{$private_deploy_path}/previous"));
 
         $this->assertMatchesRegularExpression(
-            '/\\/tmp\\/public_html$/',
+            '/\/tmp\/public_html$/',
             file_get_contents("{$private_deploy_path}/live/installed_to.txt")
         );
 
@@ -408,7 +408,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         );
 
         $this->assertMatchesRegularExpression(
-            '/\\/tmp\\/public_html$/',
+            '/\/tmp\/public_html$/',
             file_get_contents("{$private_deploy_path}/live/installed_to.txt")
         );
 
@@ -539,7 +539,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
         $public_deploy_path = $fake_remote_deploy_bootstrap->testOnlyGetPublicDeployPath();
 
-        $this->assertMatchesRegularExpression('/\\/lib$/', $public_deploy_path);
+        $this->assertMatchesRegularExpression('/\/lib$/', $public_deploy_path);
     }
 
     public function testGetOverrideOrDefaultReturnOverride(): void {
@@ -581,7 +581,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides();
         $public_deploy_path = $fake_remote_deploy_bootstrap->testOnlyGetPublicDeployPath();
 
-        $this->assertMatchesRegularExpression('/\\/lib$/', $public_deploy_path);
+        $this->assertMatchesRegularExpression('/\/lib$/', $public_deploy_path);
     }
 
     public function testGetOverrideOrDefaultReturnOverrideWithOverrides(): void {
