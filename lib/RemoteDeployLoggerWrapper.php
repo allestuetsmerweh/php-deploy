@@ -3,9 +3,9 @@
 namespace PhpDeploy;
 
 class RemoteDeployLoggerWrapper extends \Psr\Log\AbstractLogger {
-    protected $remote_logger = [];
+    protected RemoteDeployLogger $remote_logger;
 
-    public function __construct($remote_logger) {
+    public function __construct(RemoteDeployLogger $remote_logger) {
         $this->remote_logger = $remote_logger;
     }
 

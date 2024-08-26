@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace PhpDeploy\Tests\IntegrationTests;
 
+use League\Flysystem\Filesystem;
+use League\Flysystem\Local\LocalFilesystemAdapter;
 use PhpDeploy\AbstractDeploy;
 use PhpDeploy\Tests\Fake\FakeLogger;
 use PhpDeploy\Tests\IntegrationTests\Common\IntegrationTestCase;
@@ -11,17 +13,17 @@ use PhpDeploy\Tests\IntegrationTests\Common\IntegrationTestCase;
 class FakeIntegrationDeploy extends AbstractDeploy {
     use \Psr\Log\LoggerAwareTrait;
 
-    public $port = 8081;
+    public int $port = 8081;
 
-    public function getLocalTmpDir() {
+    public function getLocalTmpDir(): string {
         $tmp_path = __DIR__.'/tmp/local/local_tmp';
         if (!is_dir($tmp_path)) {
-            mkdir($tmp_path, 0777, true);
+            mkdir($tmp_path, 0o777, true);
         }
         return $tmp_path;
     }
 
-    protected function populateFolder() {
+    protected function populateFolder(): void {
         $fs = new \Symfony\Component\Filesystem\Filesystem();
         $path = $this->getLocalBuildFolderPath();
 
@@ -32,47 +34,50 @@ class FakeIntegrationDeploy extends AbstractDeploy {
         file_put_contents("{$path}/subdir/subtest.txt", 'subtest1234');
     }
 
-    protected function getFlysystemFilesystem() {
-        $adapter = new \League\Flysystem\Local\LocalFilesystemAdapter(
+    protected function getFlysystemFilesystem(): Filesystem {
+        $adapter = new LocalFilesystemAdapter(
             __DIR__.'/tmp/test_server/'
         );
-        return new \League\Flysystem\Filesystem($adapter);
+        return new Filesystem($adapter);
     }
 
-    protected function getRemoteLogMessage($entry) {
+    protected function getRemoteLogMessage(array $entry): string {
         // Omit the date, which is not mocked (i.e. the live date)
         $message = $entry['message'];
         return "remote> {$message}";
     }
 
-    public function getRemotePublicPath() {
+    public function getRemotePublicPath(): string {
         $public_path = __DIR__."/tmp/test_server/public_html";
         if (!is_dir($public_path)) {
-            mkdir($public_path, 0777, true);
+            mkdir($public_path, 0o777, true);
             file_put_contents("{$public_path}/index.php", 'some index stuff');
         }
         return 'public_html';
     }
 
-    public function getRemotePublicUrl() {
+    public function getRemotePublicUrl(): string {
         return "http://127.0.0.1:{$this->port}";
     }
 
-    public function getRemotePrivatePath() {
+    public function getRemotePrivatePath(): string {
         $private_deploy_path = __DIR__."/tmp/test_server/private_files/deploy";
         if (!is_dir($private_deploy_path)) {
-            mkdir($private_deploy_path, 0777, true);
+            mkdir($private_deploy_path, 0o777, true);
         }
         return 'private_files';
     }
 
-    public function install($public_path) {
+    /** @return array<string, string> */
+    public function install(string $public_path): array {
         // unused, see ./tests/IntegrationTests/resources/*Deploy.php
+        return [];
     }
 
-    protected function afterDeploy($result) {
+    /** @param array<string, string> $result */
+    protected function afterDeploy(array $result): void {
         $json_result = json_encode($result);
-        $this->logger->info("afterDeploy {$json_result}");
+        $this->logger?->info("afterDeploy {$json_result}");
     }
 }
 
@@ -119,8 +124,8 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
 
     public function testBuildAndDeploy(): void {
         $deploy_path = __DIR__.'/tmp/test_server/private_files/deploy/';
-        mkdir($deploy_path, 0777, true);
-        mkdir("{$deploy_path}/previous/subdir", 0777, true);
+        mkdir($deploy_path, 0o777, true);
+        mkdir("{$deploy_path}/previous/subdir", 0o777, true);
         file_put_contents(
             "{$deploy_path}/previous/test.txt",
             'build_and_deploy_previous_test'
@@ -129,7 +134,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             "{$deploy_path}/previous/subdir/subtest.txt",
             'build_and_deploy_previous_subtest'
         );
-        mkdir("{$deploy_path}/live/subdir", 0777, true);
+        mkdir("{$deploy_path}/live/subdir", 0o777, true);
         file_put_contents(
             "{$deploy_path}/live/test.txt",
             'build_and_deploy_live_test'
@@ -140,7 +145,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         );
 
         $public_path = __DIR__.'/tmp/test_server/public_html/';
-        mkdir($public_path, 0777, true);
+        mkdir($public_path, 0o777, true);
         $this->startTestServer('127.0.0.1', 8081, $public_path);
 
         $fake_deployment_builder = new FakeIntegrationDeploy();
@@ -191,7 +196,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'Zipping done.', []],
             ['info', 'Build done.', []],
             ['info', 'Deploy...', []],
-            ['info', 'Upload (3.46 MB)...', []],
+            ['info', 'Upload (6.88 MB)...', []],
             ['info', 'Upload done.', []],
             ['info', 'Running deploy script (http://127.0.0.1:8081/***/deploy.php)...', []],
             ['info', 'remote> Initialize...', []],
@@ -207,7 +212,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'Deploy done with result: {"file":"Deploy.php","result":"dependent-deploy-result"}', []],
             ['info', 'afterDeploy {"file":"Deploy.php","result":"dependent-deploy-result"}', []],
         ], array_map(function ($entry) {
-            return [$entry[0], preg_replace('/\/[\S]{24}\//', '/***/', $entry[1]), $entry[2]];
+            return [$entry[0], preg_replace('/\/[\S]{24}\//', '/***/', strval($entry[1])), $entry[2]];
         }, $fake_logger->messages));
     }
 
@@ -225,7 +230,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $zip->close();
 
         $public_path = __DIR__.'/tmp/test_server/public_html/';
-        mkdir($public_path, 0777, true);
+        mkdir($public_path, 0o777, true);
         $this->startTestServer('127.0.0.1', 8082, $public_path);
         $fake_deployment_builder->port = 8082;
 
@@ -262,7 +267,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
 
         $this->assertSame([
             ['info', 'Deploy...', []],
-            ['info', 'Upload (675 bytes)...', []],
+            ['info', 'Upload (729 bytes)...', []],
             ['info', 'Upload done.', []],
             ['info', 'Running deploy script (http://127.0.0.1:8082/***/deploy.php)...', []],
             ['info', 'remote> Initialize...', []],
@@ -275,7 +280,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'remote> Done.', []],
             ['info', 'Deploy done with result: {"file":"Deploy.php","result":"standalone-deploy-result"}', []],
         ], array_map(function ($entry) {
-            return [$entry[0], preg_replace('/\/[\S]{24}\//', '/***/', $entry[1]), $entry[2]];
+            return [$entry[0], preg_replace('/\/[\S]{24}\//', '/***/', strval($entry[1])), $entry[2]];
         }, $fake_logger->messages));
 
         $this->assertSame([
@@ -298,7 +303,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $zip->close();
 
         $deploy_path = __DIR__.'/tmp/test_server/private_files/deploy/';
-        mkdir("{$deploy_path}/live/subdir", 0777, true);
+        mkdir("{$deploy_path}/live/subdir", 0o777, true);
         file_put_contents(
             "{$deploy_path}/live/test.txt",
             'build_and_deploy_live_test'
@@ -309,7 +314,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         );
 
         $public_path = __DIR__.'/tmp/test_server/public_html/';
-        mkdir($public_path, 0777, true);
+        mkdir($public_path, 0o777, true);
         $this->startTestServer('127.0.0.1', 8083, $public_path);
         $fake_deployment_builder->port = 8083;
 
@@ -350,7 +355,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
 
         $this->assertSame([
             ['info', 'Deploy...', []],
-            ['info', 'Upload (675 bytes)...', []],
+            ['info', 'Upload (729 bytes)...', []],
             ['info', 'Upload done.', []],
             ['info', 'Running deploy script (http://127.0.0.1:8083/***/deploy.php)...', []],
             ['info', 'remote> Initialize...', []],
@@ -363,7 +368,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'remote> Done.', []],
             ['info', 'Deploy done with result: {"file":"Deploy.php","result":"standalone-deploy-result"}', []],
         ], array_map(function ($entry) {
-            return [$entry[0], preg_replace('/\/[\S]{24}\//', '/***/', $entry[1]), $entry[2]];
+            return [$entry[0], preg_replace('/\/[\S]{24}\//', '/***/', strval($entry[1])), $entry[2]];
         }, $fake_logger->messages));
 
         $this->assertSame([

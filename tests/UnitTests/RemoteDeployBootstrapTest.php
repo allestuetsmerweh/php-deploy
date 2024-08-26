@@ -5,79 +5,81 @@ declare(strict_types=1);
 namespace PhpDeploy\Tests\UnitTests;
 
 use PhpDeploy\RemoteDeployBootstrap;
-use PhpDeploy\Tests\Fake\FakeLogger;
+use PhpDeploy\RemoteDeployLogger;
 use PhpDeploy\Tests\UnitTests\Common\UnitTestCase;
 
 class FakeRemoteDeployBootstrap extends RemoteDeployBootstrap {
-    public $public_path = 'public_html';
+    public string $public_path = 'public_html';
 
-    protected function getDateString() {
+    protected function getDateString(): string {
         return '2020-03-16_09_00_00';
     }
 
-    protected function getDeployPath() {
+    protected function getDeployPath(): string {
         return 'private_files/deploy';
     }
 
-    protected function getPublicPath() {
+    protected function getPublicPath(): string {
         return $this->public_path;
     }
 
-    protected function getPublicDeployPath() {
+    protected function getPublicDeployPath(): string {
         return __DIR__.'/tmp/public_html/ABCDEFGHIJ';
     }
 
-    public function testOnlyRemoveR($path) {
-        return parent::remove_r($path);
+    public function testOnlyRemoveRecursive(string $path): void {
+        parent::removeRecursive($path);
     }
 
-    public function testOnlyGetDateString() {
+    public function testOnlyGetDateString(): string {
         return parent::getDateString();
     }
 
-    public function testOnlyGetDeployPath() {
+    public function testOnlyGetDeployPath(): string {
         return parent::getDeployPath();
     }
 
-    public function testOnlyGetPublicPath() {
+    public function testOnlyGetPublicPath(): string {
         return parent::getPublicPath();
     }
 
-    public function testOnlyGetArgs() {
+    /** @return array<string, string> */
+    public function testOnlyGetArgs(): array {
         return parent::getArgs();
     }
 
-    public function testOnlyGetPublicDeployPath() {
+    public function testOnlyGetPublicDeployPath(): string {
         return parent::getPublicDeployPath();
     }
 
-    public function testOnlyGetOverrideOrDefault($override, $default) {
+    public function testOnlyGetOverrideOrDefault(string $override, string $default): string {
         return parent::getOverrideOrDefault($override, $default);
     }
 }
 
 class FakeRemoteDeployBootstrapWithOverrides extends RemoteDeployBootstrap {
-    public $DEPLOY_PATH_OVERRIDE = 'private_files/deploy/override';
-    public $PUBLIC_PATH_OVERRIDE = 'public_html/override';
-    public $ARGS_OVERRIDE = '{"just":"test"}';
+    public string $DEPLOY_PATH_OVERRIDE = 'private_files/deploy/override';
+    public string $PUBLIC_PATH_OVERRIDE = 'public_html/override';
+    public string $ARGS_OVERRIDE = '{"just":"test"}';
 
-    public function testOnlyGetDeployPath() {
+    public function testOnlyGetDeployPath(): string {
         return parent::getDeployPath();
     }
 
-    public function testOnlyGetPublicPath() {
+    public function testOnlyGetPublicPath(): string {
         return parent::getPublicPath();
     }
 
-    public function testOnlyGetArgs() {
+    /** @return array<string, string> */
+    public function testOnlyGetArgs(): array {
         return parent::getArgs();
     }
 
-    public function testOnlyGetPublicDeployPath() {
+    public function testOnlyGetPublicDeployPath(): string {
         return parent::getPublicDeployPath();
     }
 
-    public function testOnlyGetOverrideOrDefault($override, $default) {
+    public function testOnlyGetOverrideOrDefault(string $override, string $default): string {
         return parent::getOverrideOrDefault($override, $default);
     }
 }
@@ -94,10 +96,10 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $zip_path = "{$public_deploy_path}/deploy.zip";
         $php_path = "{$public_deploy_path}/deploy.php";
         if (!is_dir($public_deploy_path)) {
-            mkdir($public_deploy_path, 0777, true);
+            mkdir($public_deploy_path, 0o777, true);
         }
         if (!is_dir($private_deploy_path)) {
-            mkdir($private_deploy_path, 0777, true);
+            mkdir($private_deploy_path, 0o777, true);
         }
         $zip = new \ZipArchive();
         $zip->open($zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
@@ -113,9 +115,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(false, is_dir("{$private_deploy_path}/live"));
         $this->assertSame(false, is_dir("{$private_deploy_path}/previous"));
 
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
-        $fake_logger = new FakeLogger();
-        $fake_remote_deploy_bootstrap->logger = $fake_logger;
+        $fake_logger = new RemoteDeployLogger();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap($fake_logger);
         $fake_remote_deploy_bootstrap->run();
 
         $this->assertSame(false, is_file($zip_path));
@@ -126,7 +127,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
 
         $this->assertMatchesRegularExpression(
             '/\/tmp\/public_html$/',
-            file_get_contents("{$private_deploy_path}/live/installed_to.txt")
+            strval(file_get_contents("{$private_deploy_path}/live/installed_to.txt"))
         );
 
         $this->assertSame([
@@ -140,27 +141,12 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Logger injected', []],
             ['info', 'Args injected: []', []],
             ['info', 'Done.', []],
-        ], $fake_logger->messages);
-    }
-
-    public function testRunNoLogger(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
-
-        try {
-            $fake_remote_deploy_bootstrap->run();
-            throw new \Exception('Exception expected');
-        } catch (\Throwable $th) {
-            $this->assertSame(
-                'RemoteDeployBootstrap::run needs a logger!',
-                $th->getMessage()
-            );
-        }
+        ], $this->convertLogs($fake_logger->messages));
     }
 
     public function testRunInexistentPublicPath(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
-        $fake_logger = new FakeLogger();
-        $fake_remote_deploy_bootstrap->logger = $fake_logger;
+        $fake_logger = new RemoteDeployLogger();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap($fake_logger);
         $fake_remote_deploy_bootstrap->public_path = 'inexistent';
 
         try {
@@ -175,7 +161,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
 
         $this->assertSame([
             ['info', 'Initialize...', []],
-        ], $fake_logger->messages);
+        ], $this->convertLogs($fake_logger->messages));
     }
 
     public function testRunInexistentPrivateDirectory(): void {
@@ -184,7 +170,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $zip_path = "{$public_deploy_path}/deploy.zip";
         $php_path = "{$public_deploy_path}/deploy.php";
         if (!is_dir($public_deploy_path)) {
-            mkdir($public_deploy_path, 0777, true);
+            mkdir($public_deploy_path, 0o777, true);
         }
         $zip = new \ZipArchive();
         $zip->open($zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
@@ -202,9 +188,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(false, is_file("{$public_deploy_path}/invalid_deploy_2020-03-16_09_00_00.zip"));
 
         try {
-            $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
-            $fake_logger = new FakeLogger();
-            $fake_remote_deploy_bootstrap->logger = $fake_logger;
+            $fake_logger = new RemoteDeployLogger();
+            $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap($fake_logger);
             $fake_remote_deploy_bootstrap->run();
             throw new \Exception('Exception expected');
         } catch (\Throwable $th) {
@@ -223,7 +208,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame([
             ['info', 'Initialize...', []],
             ['info', 'Run some checks...', []],
-        ], $fake_logger->messages);
+        ], $this->convertLogs($fake_logger->messages));
     }
 
     public function testRunWithInvalidZip(): void {
@@ -232,10 +217,10 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $zip_path = "{$public_deploy_path}/deploy.zip";
         $php_path = "{$public_deploy_path}/deploy.php";
         if (!is_dir($public_deploy_path)) {
-            mkdir($public_deploy_path, 0777, true);
+            mkdir($public_deploy_path, 0o777, true);
         }
         if (!is_dir($private_deploy_path)) {
-            mkdir($private_deploy_path, 0777, true);
+            mkdir($private_deploy_path, 0o777, true);
         }
         file_put_contents($zip_path, 'whatever');
         file_put_contents($php_path, 'whatever');
@@ -249,9 +234,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(false, is_file("{$public_deploy_path}/invalid_deploy_2020-03-16_09_00_00.zip"));
 
         try {
-            $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
-            $fake_logger = new FakeLogger();
-            $fake_remote_deploy_bootstrap->logger = $fake_logger;
+            $fake_logger = new RemoteDeployLogger();
+            $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap($fake_logger);
             $fake_remote_deploy_bootstrap->run();
             throw new \Exception('Exception expected');
         } catch (\Throwable $th) {
@@ -275,7 +259,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Initialize...', []],
             ['info', 'Run some checks...', []],
             ['info', 'Unzip the uploaded file to candidate directory...', []],
-        ], $fake_logger->messages);
+        ], $this->convertLogs($fake_logger->messages));
     }
 
     public function testRunWithResidualCandidate(): void {
@@ -284,10 +268,10 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $zip_path = "{$public_deploy_path}/deploy.zip";
         $php_path = "{$public_deploy_path}/deploy.php";
         if (!is_dir($public_deploy_path)) {
-            mkdir($public_deploy_path, 0777, true);
+            mkdir($public_deploy_path, 0o777, true);
         }
         if (!is_dir($private_deploy_path)) {
-            mkdir($private_deploy_path, 0777, true);
+            mkdir($private_deploy_path, 0o777, true);
         }
         $zip = new \ZipArchive();
         $zip->open($zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
@@ -305,9 +289,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(false, is_dir("{$private_deploy_path}/live"));
         $this->assertSame(false, is_dir("{$private_deploy_path}/previous"));
 
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
-        $fake_logger = new FakeLogger();
-        $fake_remote_deploy_bootstrap->logger = $fake_logger;
+        $fake_logger = new RemoteDeployLogger();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap($fake_logger);
         $fake_remote_deploy_bootstrap->run();
 
         $this->assertSame(false, is_file($zip_path));
@@ -319,7 +302,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
 
         $this->assertMatchesRegularExpression(
             '/\/tmp\/public_html$/',
-            file_get_contents("{$private_deploy_path}/live/installed_to.txt")
+            strval(file_get_contents("{$private_deploy_path}/live/installed_to.txt"))
         );
 
         $this->assertSame([
@@ -334,7 +317,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Logger injected', []],
             ['info', 'Args injected: []', []],
             ['info', 'Done.', []],
-        ], $fake_logger->messages);
+        ], $this->convertLogs($fake_logger->messages));
     }
 
     public function testRunWithPreviousDeployments(): void {
@@ -343,10 +326,10 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $zip_path = "{$public_deploy_path}/deploy.zip";
         $php_path = "{$public_deploy_path}/deploy.php";
         if (!is_dir($public_deploy_path)) {
-            mkdir($public_deploy_path, 0777, true);
+            mkdir($public_deploy_path, 0o777, true);
         }
         if (!is_dir($private_deploy_path)) {
-            mkdir($private_deploy_path, 0777, true);
+            mkdir($private_deploy_path, 0o777, true);
         }
         $zip = new \ZipArchive();
         $zip->open($zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
@@ -355,7 +338,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $zip->addFromString('subdir/subtest.txt', 'subtest1234');
         $zip->close();
         file_put_contents($php_path, 'whatever');
-        mkdir("{$private_deploy_path}/live/subdir", 0777, true);
+        mkdir("{$private_deploy_path}/live/subdir", 0o777, true);
         file_put_contents(
             "{$private_deploy_path}/live/test.txt",
             'unit_test_live'
@@ -364,7 +347,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             "{$private_deploy_path}/live/subdir/subtest.txt",
             'unit_subtest_live'
         );
-        mkdir("{$private_deploy_path}/previous/subdir", 0777, true);
+        mkdir("{$private_deploy_path}/previous/subdir", 0o777, true);
         file_put_contents(
             "{$private_deploy_path}/previous/test.txt",
             'unit_test_previous'
@@ -380,9 +363,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(true, is_dir("{$private_deploy_path}/live"));
         $this->assertSame(true, is_dir("{$private_deploy_path}/previous"));
 
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
-        $fake_logger = new FakeLogger();
-        $fake_remote_deploy_bootstrap->logger = $fake_logger;
+        $fake_logger = new RemoteDeployLogger();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap($fake_logger);
         $fake_remote_deploy_bootstrap->run();
 
         $this->assertSame(false, is_file($zip_path));
@@ -391,25 +373,25 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(true, is_dir("{$private_deploy_path}/live"));
         $this->assertSame(
             'test1234',
-            file_get_contents("{$private_deploy_path}/live/test.txt")
+            strval(file_get_contents("{$private_deploy_path}/live/test.txt"))
         );
         $this->assertSame(
             'subtest1234',
-            file_get_contents("{$private_deploy_path}/live/subdir/subtest.txt")
+            strval(file_get_contents("{$private_deploy_path}/live/subdir/subtest.txt"))
         );
         $this->assertSame(true, is_dir("{$private_deploy_path}/previous"));
         $this->assertSame(
             'unit_test_live',
-            file_get_contents("{$private_deploy_path}/previous/test.txt")
+            strval(file_get_contents("{$private_deploy_path}/previous/test.txt"))
         );
         $this->assertSame(
             'unit_subtest_live',
-            file_get_contents("{$private_deploy_path}/previous/subdir/subtest.txt")
+            strval(file_get_contents("{$private_deploy_path}/previous/subdir/subtest.txt"))
         );
 
         $this->assertMatchesRegularExpression(
             '/\/tmp\/public_html$/',
-            file_get_contents("{$private_deploy_path}/live/installed_to.txt")
+            strval(file_get_contents("{$private_deploy_path}/live/installed_to.txt"))
         );
 
         $this->assertSame([
@@ -423,7 +405,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Logger injected', []],
             ['info', 'Args injected: []', []],
             ['info', 'Done.', []],
-        ], $fake_logger->messages);
+        ], $this->convertLogs($fake_logger->messages));
     }
 
     public function testRunWithoutDeployPhp(): void {
@@ -432,10 +414,10 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $zip_path = "{$public_deploy_path}/deploy.zip";
         $php_path = "{$public_deploy_path}/deploy.php";
         if (!is_dir($public_deploy_path)) {
-            mkdir($public_deploy_path, 0777, true);
+            mkdir($public_deploy_path, 0o777, true);
         }
         if (!is_dir($private_deploy_path)) {
-            mkdir($private_deploy_path, 0777, true);
+            mkdir($private_deploy_path, 0o777, true);
         }
         $zip = new \ZipArchive();
         $zip->open($zip_path, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
@@ -451,9 +433,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(false, is_dir("{$private_deploy_path}/previous"));
 
         try {
-            $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
-            $fake_logger = new FakeLogger();
-            $fake_remote_deploy_bootstrap->logger = $fake_logger;
+            $fake_logger = new RemoteDeployLogger();
+            $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap($fake_logger);
             $fake_remote_deploy_bootstrap->run();
             throw new \Exception('Exception expected');
         } catch (\Throwable $th) {
@@ -474,12 +455,12 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Put the candidate live...', []],
             ['info', 'Clean up...', []],
             ['info', 'Install...', []],
-        ], $fake_logger->messages);
+        ], $this->convertLogs($fake_logger->messages));
     }
 
     public function testRemoveR(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
-        mkdir(__DIR__.'/tmp/dir/subdir', 0777, true);
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap(new RemoteDeployLogger());
+        mkdir(__DIR__.'/tmp/dir/subdir', 0o777, true);
         file_put_contents(__DIR__.'/tmp/dir/test.txt', 'test1234');
         file_put_contents(__DIR__.'/tmp/dir/subdir/subtest.txt', 'subtest1234');
         symlink(
@@ -494,7 +475,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame(true, is_dir(__DIR__.'/tmp/dir/subdir'));
         $this->assertSame(true, is_file(__DIR__.'/tmp/dir/subdir/subtest.txt'));
 
-        $fake_remote_deploy_bootstrap->testOnlyRemoveR(__DIR__.'/tmp/dir');
+        $fake_remote_deploy_bootstrap->testOnlyRemoveRecursive(__DIR__.'/tmp/dir');
 
         $this->assertSame(true, is_dir(__DIR__.'/tmp'));
         $this->assertSame(false, is_dir(__DIR__.'/tmp/dir'));
@@ -505,7 +486,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
     }
 
     public function testGetDateString(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap(new RemoteDeployLogger());
         $date_string = $fake_remote_deploy_bootstrap->testOnlyGetDateString();
 
         $this->assertMatchesRegularExpression(
@@ -515,86 +496,97 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
     }
 
     public function testGetDeployPath(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap(new RemoteDeployLogger());
         $deploy_path = $fake_remote_deploy_bootstrap->testOnlyGetDeployPath();
 
         $this->assertSame('', $deploy_path);
     }
 
     public function testGetPublicPath(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap(new RemoteDeployLogger());
         $public_path = $fake_remote_deploy_bootstrap->testOnlyGetPublicPath();
 
         $this->assertSame('', $public_path);
     }
 
     public function testGetArgs(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap(new RemoteDeployLogger());
         $args = $fake_remote_deploy_bootstrap->testOnlyGetArgs();
 
         $this->assertSame([], $args);
     }
 
     public function testGetPublicDeployPath(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap(new RemoteDeployLogger());
         $public_deploy_path = $fake_remote_deploy_bootstrap->testOnlyGetPublicDeployPath();
 
         $this->assertMatchesRegularExpression('/\/lib$/', $public_deploy_path);
     }
 
     public function testGetOverrideOrDefaultReturnOverride(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap(new RemoteDeployLogger());
         $result = $fake_remote_deploy_bootstrap->testOnlyGetOverrideOrDefault('override', 'default');
 
         $this->assertSame('override', $result);
     }
 
     public function testGetOverrideOrDefaultReturnDefault(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrap(new RemoteDeployLogger());
         $result = $fake_remote_deploy_bootstrap->testOnlyGetOverrideOrDefault('%%%OVERRIDE%%%', 'default');
 
         $this->assertSame('default', $result);
     }
 
     public function testGetDeployPathWithOverrides(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides(new RemoteDeployLogger());
         $deploy_path = $fake_remote_deploy_bootstrap->testOnlyGetDeployPath();
 
         $this->assertSame('private_files/deploy/override', $deploy_path);
     }
 
     public function testGetPublicPathWithOverrides(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides(new RemoteDeployLogger());
         $public_path = $fake_remote_deploy_bootstrap->testOnlyGetPublicPath();
 
         $this->assertSame('public_html/override', $public_path);
     }
 
     public function testGetArgsWithOverrides(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides(new RemoteDeployLogger());
         $args = $fake_remote_deploy_bootstrap->testOnlyGetArgs();
 
         $this->assertSame(['just' => 'test'], $args);
     }
 
     public function testGetPublicDeployPathWithOverrides(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides(new RemoteDeployLogger());
         $public_deploy_path = $fake_remote_deploy_bootstrap->testOnlyGetPublicDeployPath();
 
         $this->assertMatchesRegularExpression('/\/lib$/', $public_deploy_path);
     }
 
     public function testGetOverrideOrDefaultReturnOverrideWithOverrides(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides(new RemoteDeployLogger());
         $result = $fake_remote_deploy_bootstrap->testOnlyGetOverrideOrDefault('override', 'default');
 
         $this->assertSame('override', $result);
     }
 
     public function testGetOverrideOrDefaultReturnDefaultWithOverrides(): void {
-        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides();
+        $fake_remote_deploy_bootstrap = new FakeRemoteDeployBootstrapWithOverrides(new RemoteDeployLogger());
         $result = $fake_remote_deploy_bootstrap->testOnlyGetOverrideOrDefault('%%%OVERRIDE%%%', 'default');
 
         $this->assertSame('default', $result);
+    }
+
+    /**
+     * @param array<array{level: string, timestamp: float, message: string|\Stringable, context: array<mixed>}> $messages
+     *
+     * @return array<array{0: mixed, 1: string|\Stringable, 2: array<mixed>}>
+     */
+    private function convertLogs(array $messages): array {
+        return array_map(function ($entry) {
+            return [$entry['level'], $entry['message'], $entry['context']];
+        }, $messages);
     }
 }

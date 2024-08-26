@@ -4,62 +4,23 @@ declare(strict_types=1);
 
 namespace PhpDeploy\Tests\UnitTests;
 
+use League\Flysystem\Filesystem;
+use League\Flysystem\Local\LocalFilesystemAdapter;
 use PhpDeploy\AbstractDeploy;
 use PhpDeploy\RemoteDeployLogger;
 use PhpDeploy\Tests\Fake\FakeLogger;
 use PhpDeploy\Tests\UnitTests\Common\UnitTestCase;
 
-class FakeFlysystemEntry {
-    public function __construct($path) {
-        $this->path = $path;
-    }
-
-    public function path() {
-        return $this->path;
-    }
-}
-
-class FakeFlysystemFilesystem {
-    public $has_thrown_create_directory_error = false;
-
-    public function createDirectory($path) {
-        $full_path = __DIR__."/tmp/remote/{$path}";
-        if (!is_dir($full_path)) {
-            mkdir($full_path);
-        } else {
-            $this->has_thrown_create_directory_error = true;
-            throw new \Exception("Directory already exists");
-        }
-    }
-
-    public function listContents($path) {
-        return array_map(
-            function ($name) {
-                return new FakeFlysystemEntry($name);
-            },
-            scandir(__DIR__."/tmp/remote/{$path}"),
-        );
-    }
-
-    public function writeStream($path, $stream) {
-        $content = fread($stream, 1024 * 1024);
-        $this->write($path, $content);
-    }
-
-    public function write($path, $content) {
-        file_put_contents(__DIR__."/tmp/remote/{$path}", $content);
-    }
-}
-
 class FakeDeploy extends AbstractDeploy {
     use \Psr\Log\LoggerAwareTrait;
 
-    public $deploy_php_output;
-    public $random_path_component = 'deterministically-random';
-    public $installed_to;
+    protected ?Filesystem $flysystem_filesystem = null;
+    public ?string $deploy_php_output;
+    public string $random_path_component = 'deterministically-random';
+    public ?string $installed_to;
 
     public function __construct() {
-        $this->deploy_php_output = json_encode([
+        $this->deploy_php_output = strval(json_encode([
             'success' => true,
             'result' => [
                 'deploy_result' => 'fake-deploy-result',
@@ -72,44 +33,45 @@ class FakeDeploy extends AbstractDeploy {
                     'context' => [],
                 ],
             ],
-        ]);
+        ]));
     }
 
-    public function getLocalTmpDir() {
+    public function getLocalTmpDir(): string {
         return __DIR__.'/tmp/local/local_tmp';
     }
 
-    protected function populateFolder() {
+    protected function populateFolder(): void {
         $path = $this->getLocalBuildFolderPath();
         file_put_contents("{$path}/test.txt", 'test 1234');
         mkdir("{$path}/subdir/");
         file_put_contents("{$path}/subdir/subtest.txt", 'test 1234');
     }
 
-    protected function getFlysystemFilesystem() {
+    protected function getFlysystemFilesystem(): Filesystem {
         if (!$this->flysystem_filesystem) {
-            $this->flysystem_filesystem = new FakeFlysystemFilesystem();
+            $adapter = new LocalFilesystemAdapter(__DIR__."/tmp/remote/");
+            $this->flysystem_filesystem = new Filesystem($adapter);
         }
         return $this->flysystem_filesystem;
     }
 
-    public function getRemotePublicPath() {
+    public function getRemotePublicPath(): string {
         $public_path = __DIR__."/tmp/remote/public_html";
         if (!is_dir($public_path)) {
-            mkdir($public_path, 0777, true);
+            mkdir($public_path, 0o777, true);
         }
         return 'public_html';
     }
 
-    public function getRemotePublicUrl() {
+    public function getRemotePublicUrl(): string {
         $realpath = realpath(__DIR__."/tmp/remote/private_files");
         return "file://{$realpath}";
     }
 
-    public function getRemotePrivatePath() {
+    public function getRemotePrivatePath(): string {
         $private_path = __DIR__."/tmp/remote/private_files/{$this->random_path_component}";
         if (!is_dir($private_path)) {
-            mkdir($private_path, 0777, true);
+            mkdir($private_path, 0o777, true);
             if ($this->deploy_php_output) {
                 file_put_contents("{$private_path}/deploy.php", $this->deploy_php_output);
             } else {
@@ -121,38 +83,39 @@ class FakeDeploy extends AbstractDeploy {
         return "private_files";
     }
 
-    protected function getRandomPathComponent() {
+    protected function getRandomPathComponent(): string {
         return $this->random_path_component;
     }
 
-    public function install($public_path) {
+    /** @return array<string, string> */
+    public function install(string $public_path): array {
         $this->installed_to = $public_path;
         return ['install_result' => 'fake-install-result'];
     }
 
-    protected function afterDeploy($result) {
+    protected function afterDeploy(array $result): void {
         $json_result = json_encode($result);
-        $this->logger->info("afterDeploy {$json_result}");
+        $this->logger?->info("afterDeploy {$json_result}");
     }
 
-    public function testOnlyHumanFileSize($size, $unit = '') {
+    public function testOnlyHumanFileSize(int $size, string $unit = ''): string {
         return parent::humanFileSize($size, $unit);
     }
 
-    public function testOnlyGetRandomPathComponent() {
+    public function testOnlyGetRandomPathComponent(): string {
         return parent::getRandomPathComponent();
     }
 
-    public function testOnlyGetRemotePublicRandomDeployDirname() {
+    public function testOnlyGetRemotePublicRandomDeployDirname(): string {
         return parent::getRemotePublicRandomDeployDirname();
     }
 
-    public function testOnlyGetFlysystemFilesystem() {
+    public function testOnlyGetFlysystemFilesystem(): Filesystem {
         return $this->getFlysystemFilesystem();
     }
 
-    public function testOnlyJustLogSomething() {
-        return $this->logger->info('something');
+    public function testOnlyJustLogSomething(): void {
+        $this->logger?->info('something');
     }
 }
 
@@ -214,9 +177,6 @@ final class AbstractDeployTest extends UnitTestCase {
         $this->assertSame(true, is_file("{$remote_base_path}{$remote_zip_path}"));
         $this->assertSame(true, is_file("{$remote_base_path}{$remote_script_path}"));
 
-        $fs = $fake_deployment_builder->testOnlyGetFlysystemFilesystem();
-        $this->assertSame(false, $fs->has_thrown_create_directory_error);
-
         $this->assertSame([
             ['info', 'Build...', []],
             ['info', 'Populate build folder...', []],
@@ -232,7 +192,7 @@ final class AbstractDeployTest extends UnitTestCase {
             ['info', 'Deploy done with result: {"deploy_result":"fake-deploy-result"}', []],
             ['info', 'afterDeploy {"deploy_result":"fake-deploy-result"}', []],
         ], array_map(function ($entry) {
-            return [$entry[0], str_replace(__DIR__, '***', $entry[1]), $entry[2]];
+            return [$entry[0], str_replace(__DIR__, '***', strval($entry[1])), $entry[2]];
         }, $fake_logger->messages));
     }
 
@@ -240,7 +200,7 @@ final class AbstractDeployTest extends UnitTestCase {
         $fake_deployment_builder = new FakeDeploy();
         $fake_logger = new FakeLogger();
         $fake_deployment_builder->setLogger($fake_logger);
-        $deploy_php_output = json_encode([
+        $deploy_php_output = strval(json_encode([
             'error' => [
                 'type' => 'Exception',
                 'message' => 'some exception',
@@ -259,7 +219,7 @@ final class AbstractDeployTest extends UnitTestCase {
                     'context' => [],
                 ],
             ],
-        ]);
+        ]));
         $fake_deployment_builder->deploy_php_output = $deploy_php_output;
 
         try {
@@ -282,7 +242,7 @@ final class AbstractDeployTest extends UnitTestCase {
                 ['error', 'remote> 2009-02-13 23:31:30.000 something failed...', []],
                 ['invalid', 'remote> 2009-02-13 23:31:31.000 something is invalid...', []],
             ], array_map(function ($entry) {
-                return [$entry[0], str_replace(__DIR__, '***', $entry[1]), $entry[2]];
+                return [$entry[0], str_replace(__DIR__, '***', strval($entry[1])), $entry[2]];
             }, $fake_logger->messages));
         }
     }
@@ -312,7 +272,7 @@ final class AbstractDeployTest extends UnitTestCase {
                 ['info', 'Upload done.', []],
                 ['info', 'Running deploy script (file://***/tmp/remote/private_files/deterministically-random/deploy.php)...', []],
             ], array_map(function ($entry) {
-                return [$entry[0], str_replace(__DIR__, '***', $entry[1]), $entry[2]];
+                return [$entry[0], str_replace(__DIR__, '***', strval($entry[1])), $entry[2]];
             }, $fake_logger->messages));
         }
     }
@@ -328,7 +288,9 @@ final class AbstractDeployTest extends UnitTestCase {
             throw new \Exception('Exception expected');
         } catch (\Throwable $th) {
             $this->assertMatchesRegularExpression(
-                '/^Error invoking deploy script: /', $th->getMessage());
+                '/^Error invoking deploy script: /',
+                $th->getMessage()
+            );
             $this->assertSame([
                 ['info', 'Build...', []],
                 ['info', 'Populate build folder...', []],
@@ -341,7 +303,7 @@ final class AbstractDeployTest extends UnitTestCase {
                 ['info', 'Upload done.', []],
                 ['info', 'Running deploy script (file://***/tmp/remote/private_files/deterministically-random/deploy.php)...', []],
             ], array_map(function ($entry) {
-                return [$entry[0], str_replace(__DIR__, '***', $entry[1]), $entry[2]];
+                return [$entry[0], str_replace(__DIR__, '***', strval($entry[1])), $entry[2]];
             }, $fake_logger->messages));
         }
     }
@@ -354,13 +316,10 @@ final class AbstractDeployTest extends UnitTestCase {
         $remote_path = __DIR__."/tmp/remote";
         $public_path = dirname("{$remote_path}/{$remote_zip_path}");
         if (!is_dir($public_path)) {
-            mkdir($public_path, 0777, true);
+            mkdir($public_path, 0o777, true);
         }
 
         $fake_deployment_builder->buildAndDeploy();
-
-        $fs = $fake_deployment_builder->testOnlyGetFlysystemFilesystem();
-        $this->assertSame(true, $fs->has_thrown_create_directory_error);
 
         $this->assertSame([
             ['info', 'Build...', []],
@@ -377,7 +336,7 @@ final class AbstractDeployTest extends UnitTestCase {
             ['info', 'Deploy done with result: {"deploy_result":"fake-deploy-result"}', []],
             ['info', 'afterDeploy {"deploy_result":"fake-deploy-result"}', []],
         ], array_map(function ($entry) {
-            return [$entry[0], str_replace(__DIR__, '***', $entry[1]), $entry[2]];
+            return [$entry[0], str_replace(__DIR__, '***', strval($entry[1])), $entry[2]];
         }, $fake_logger->messages));
     }
 
@@ -455,7 +414,7 @@ final class AbstractDeployTest extends UnitTestCase {
         $fake_deployment_builder->random_path_component = 'already-exists';
         $public_path = __DIR__."/tmp/remote/public_html/already-exists";
         if (!is_dir($public_path)) {
-            mkdir($public_path, 0777, true);
+            mkdir($public_path, 0o777, true);
         }
 
         try {
