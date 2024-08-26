@@ -11,6 +11,8 @@ use PhpDeploy\Tests\IntegrationTests\Common\IntegrationTestCase;
 class FakeIntegrationDeploy extends AbstractDeploy {
     use \Psr\Log\LoggerAwareTrait;
 
+    public $port = 8081;
+
     public function getLocalTmpDir() {
         $tmp_path = __DIR__.'/tmp/local/local_tmp';
         if (!is_dir($tmp_path)) {
@@ -53,7 +55,7 @@ class FakeIntegrationDeploy extends AbstractDeploy {
     }
 
     public function getRemotePublicUrl() {
-        return "http://127.0.0.1:8081";
+        return "http://127.0.0.1:{$this->port}";
     }
 
     public function getRemotePrivatePath() {
@@ -90,7 +92,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $local_folder_path = $fake_deployment_builder->getLocalBuildFolderPath();
         $local_zip_path = $fake_deployment_builder->getLocalZipPath();
 
-        $this->assertMatchesRegularExpression('/\\/tmp\\/local\\/local_tmp\\/[\\S]{24}\\/$/', $local_folder_path);
+        $this->assertMatchesRegularExpression('/\/tmp\/local\/local_tmp\/[\S]{24}\/$/', $local_folder_path);
         $this->assertSame(true, is_dir($local_folder_path));
         $this->assertSame(true, is_file("{$local_folder_path}/test.txt"));
         $this->assertSame(true, is_dir("{$local_folder_path}/subdir/"));
@@ -142,6 +144,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $this->startTestServer('127.0.0.1', 8081, $public_path);
 
         $fake_deployment_builder = new FakeIntegrationDeploy();
+        $fake_deployment_builder->port = 8081;
         $fake_logger = new FakeLogger();
         $fake_deployment_builder->setLogger($fake_logger);
 
@@ -188,9 +191,9 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'Zipping done.', []],
             ['info', 'Build done.', []],
             ['info', 'Deploy...', []],
-            ['info', 'Upload...', []],
+            ['info', 'Upload (3.46 MB)...', []],
             ['info', 'Upload done.', []],
-            ['info', 'Running deploy script...', []],
+            ['info', 'Running deploy script (http://127.0.0.1:8081/***/deploy.php)...', []],
             ['info', 'remote> Initialize...', []],
             ['info', 'remote> Run some checks...', []],
             ['info', 'remote> Unzip the uploaded file to candidate directory...', []],
@@ -203,7 +206,9 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'remote> Done.', []],
             ['info', 'Deploy done with result: {"file":"Deploy.php","result":"dependent-deploy-result"}', []],
             ['info', 'afterDeploy {"file":"Deploy.php","result":"dependent-deploy-result"}', []],
-        ], $fake_logger->messages);
+        ], array_map(function ($entry) {
+            return [$entry[0], preg_replace('/\/[\S]{24}\//', '/***/', $entry[1]), $entry[2]];
+        }, $fake_logger->messages));
     }
 
     public function testFreshDeploy(): void {
@@ -221,7 +226,8 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
 
         $public_path = __DIR__.'/tmp/test_server/public_html/';
         mkdir($public_path, 0777, true);
-        $this->startTestServer('127.0.0.1', 8081, $public_path);
+        $this->startTestServer('127.0.0.1', 8082, $public_path);
+        $fake_deployment_builder->port = 8082;
 
         $result = $fake_deployment_builder->deploy();
 
@@ -256,9 +262,9 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
 
         $this->assertSame([
             ['info', 'Deploy...', []],
-            ['info', 'Upload...', []],
+            ['info', 'Upload (675 bytes)...', []],
             ['info', 'Upload done.', []],
-            ['info', 'Running deploy script...', []],
+            ['info', 'Running deploy script (http://127.0.0.1:8082/***/deploy.php)...', []],
             ['info', 'remote> Initialize...', []],
             ['info', 'remote> Run some checks...', []],
             ['info', 'remote> Unzip the uploaded file to candidate directory...', []],
@@ -268,7 +274,9 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'remote> Install...', []],
             ['info', 'remote> Done.', []],
             ['info', 'Deploy done with result: {"file":"Deploy.php","result":"standalone-deploy-result"}', []],
-        ], $fake_logger->messages);
+        ], array_map(function ($entry) {
+            return [$entry[0], preg_replace('/\/[\S]{24}\//', '/***/', $entry[1]), $entry[2]];
+        }, $fake_logger->messages));
 
         $this->assertSame([
             'file' => 'Deploy.php',
@@ -302,7 +310,8 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
 
         $public_path = __DIR__.'/tmp/test_server/public_html/';
         mkdir($public_path, 0777, true);
-        $this->startTestServer('127.0.0.1', 8081, $public_path);
+        $this->startTestServer('127.0.0.1', 8083, $public_path);
+        $fake_deployment_builder->port = 8083;
 
         $result = $fake_deployment_builder->deploy();
 
@@ -341,9 +350,9 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
 
         $this->assertSame([
             ['info', 'Deploy...', []],
-            ['info', 'Upload...', []],
+            ['info', 'Upload (675 bytes)...', []],
             ['info', 'Upload done.', []],
-            ['info', 'Running deploy script...', []],
+            ['info', 'Running deploy script (http://127.0.0.1:8083/***/deploy.php)...', []],
             ['info', 'remote> Initialize...', []],
             ['info', 'remote> Run some checks...', []],
             ['info', 'remote> Unzip the uploaded file to candidate directory...', []],
@@ -353,7 +362,9 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'remote> Install...', []],
             ['info', 'remote> Done.', []],
             ['info', 'Deploy done with result: {"file":"Deploy.php","result":"standalone-deploy-result"}', []],
-        ], $fake_logger->messages);
+        ], array_map(function ($entry) {
+            return [$entry[0], preg_replace('/\/[\S]{24}\//', '/***/', $entry[1]), $entry[2]];
+        }, $fake_logger->messages));
 
         $this->assertSame([
             'file' => 'Deploy.php',
@@ -365,14 +376,14 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $fake_deployment_builder = new FakeIntegrationDeploy();
 
         $result = $fake_deployment_builder->getLocalBuildFolderPath();
-        $this->assertMatchesRegularExpression('/\\/tmp\\/local\\/local_tmp\\/[\\S]{24}\\/$/', $result);
+        $this->assertMatchesRegularExpression('/\/tmp\/local\/local_tmp\/[\S]{24}\/$/', $result);
     }
 
     public function testGetLocalZipPath(): void {
         $fake_deployment_builder = new FakeIntegrationDeploy();
 
         $result = $fake_deployment_builder->getLocalZipPath();
-        $this->assertMatchesRegularExpression('/\\/tmp\\/local\\/local_tmp\\/[\\S]{24}\.zip$/', $result);
+        $this->assertMatchesRegularExpression('/\/tmp\/local\/local_tmp\/[\S]{24}\.zip$/', $result);
     }
 
     public function testGetRemoteDeployPath(): void {
@@ -393,13 +404,13 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
         $fake_deployment_builder = new FakeIntegrationDeploy();
 
         $result = $fake_deployment_builder->getRemoteZipPath();
-        $this->assertMatchesRegularExpression('/public_html\\/[\\S]{24}\\/deploy\\.zip$/', $result);
+        $this->assertMatchesRegularExpression('/public_html\/[\S]{24}\/deploy\.zip$/', $result);
     }
 
     public function testGetRemoteScriptPath(): void {
         $fake_deployment_builder = new FakeIntegrationDeploy();
 
         $result = $fake_deployment_builder->getRemoteScriptPath();
-        $this->assertMatchesRegularExpression('/public_html\\/[\\S]{24}\\/deploy\\.php$/', $result);
+        $this->assertMatchesRegularExpression('/public_html\/[\S]{24}\/deploy\.php$/', $result);
     }
 }

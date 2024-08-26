@@ -40,10 +40,22 @@ abstract class AbstractDefaultDeploy extends AbstractDeploy implements \Psr\Log\
 
     public function initFromEnv() {
         $opts = $this->getCommandLineOptions();
-        $target = $opts['target'];
-        $environment = $opts['environment'];
-        $username = $opts['username'];
+        $target = $opts['target'] ?? null;
+        if (!$target) {
+            throw new \Exception("Command line option --target=... must be set.");
+        }
+        $environment = $opts['environment'] ?? null;
+        if (!$environment) {
+            throw new \Exception("Command line option --environment=... must be set.");
+        }
+        $username = $opts['username'] ?? null;
+        if (!$username) {
+            throw new \Exception("Command line option --username=... must be set.");
+        }
         $password = $this->getEnvironmentVariable('PASSWORD');
+        if (!$username) {
+            throw new \Exception("Environment variable PASSWORD=... must be set.");
+        }
 
         $this->target = $target;
         $this->environment = $environment;

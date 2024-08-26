@@ -97,7 +97,9 @@ abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
         $remote_public_path = $this->getRemotePublicPath();
         $remote_fs = $this->getFlysystemFilesystemSingleton();
 
-        $this->logger->info("Upload...");
+        $zip_size = filesize($local_zip_path);
+        $pretty_zip_size = $zip_size ? $this->humanFileSize($zip_size) : '? bytes';
+        $this->logger->info("Upload ({$pretty_zip_size})...");
         try {
             $remote_fs->createDirectory(dirname($remote_zip_path));
         } catch (\Throwable $th) {
@@ -119,7 +121,7 @@ abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
         $deploy_dirname = $this->getRemotePublicRandomDeployDirname();
         $url = "{$base_url}/{$deploy_dirname}/deploy.php";
 
-        $this->logger->info("Running deploy script...");
+        $this->logger->info("Running deploy script ({$url})...");
         $deploy_out = $this->invokeDeployScript($url);
         $deploy_response = json_decode($deploy_out, true);
         $remote_logs = $deploy_response['log'] ?? [];
@@ -137,6 +139,19 @@ abstract class AbstractDeploy implements \Psr\Log\LoggerAwareInterface {
         $json_result = json_encode($result);
         $this->logger->info("Deploy done with result: {$json_result}");
         return $result;
+    }
+
+    protected function humanFileSize($size, $unit = "") {
+        if ((!$unit && $size >= 1 << 30) || $unit == "GB") {
+            return number_format($size / (1 << 30), 2, ".", "'")." GB";
+        }
+        if ((!$unit && $size >= 1 << 20) || $unit == "MB") {
+            return number_format($size / (1 << 20), 2, ".", "'")." MB";
+        }
+        if ((!$unit && $size >= 1 << 10) || $unit == "KB") {
+            return number_format($size / (1 << 10), 2, ".", "'")." KB";
+        }
+        return number_format($size, 0, ".", "'")." bytes";
     }
 
     private function invokeDeployScript($url) {

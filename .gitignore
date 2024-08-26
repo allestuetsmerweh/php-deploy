@@ -6,4 +6,5 @@ tmp
 /php-coverage
 /.php-cs-fixer.cache
 /.php_cs.cache
+/.phpunit.cache
 /.phpunit.result.cache

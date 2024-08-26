@@ -115,17 +115,13 @@ final class AbstractDefaultDeployTest extends UnitTestCase {
 
     public function testCliWithoutArgv(): void {
         $fake_default_deploy = new FakeDefaultDeploy();
+        $fake_default_deploy->command_line_options = [];
+        $fake_default_deploy->environment_variables = [];
         try {
             $fake_default_deploy->cli();
             throw new \Exception('Exception expected');
         } catch (\Throwable $th) {
-            $correct_message = (
-                // PHP 8
-                $th->getMessage() === 'Undefined array key "target"'
-                // PHP 7
-                || $th->getMessage() === 'Undefined index: target'
-            );
-            $this->assertSame(true, $correct_message);
+            $this->assertSame('Command line option --target=... must be set.', $th->getMessage());
             $this->assertSame(null, $fake_default_deploy->testOnlyGetEnvironment());
             $this->assertSame(null, $fake_default_deploy->testOnlyGetUsername());
             $this->assertSame(null, $fake_default_deploy->testOnlyGetPassword());
