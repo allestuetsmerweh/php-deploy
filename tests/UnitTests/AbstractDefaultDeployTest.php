@@ -4,82 +4,89 @@ declare(strict_types=1);
 
 namespace PhpDeploy\Tests\UnitTests;
 
+use League\Flysystem\Filesystem;
 use PhpDeploy\AbstractDefaultDeploy;
 use PhpDeploy\Tests\UnitTests\Common\UnitTestCase;
 
 class FakeDefaultDeploy extends AbstractDefaultDeploy {
     use \Psr\Log\LoggerAwareTrait;
 
-    public $command_line_options = [];
-    public $environment_variables = [];
+    /** @var array<string, string> */
+    public array $command_line_options = [];
+    /** @var array<string, string> */
+    public array $environment_variables = [];
 
-    public $build_and_deploy_called = false;
-    public $installed_to;
+    public bool $build_and_deploy_called = false;
+    public ?string $installed_to;
 
-    protected function populateFolder() {
+    protected ?string $remote_public_random_deploy_dirname = null;
+
+    protected function populateFolder(): void {
     }
 
-    protected function getFlysystemFilesystem() {
-        return null;
+    protected function getFlysystemFilesystem(): Filesystem {
+        throw new \Exception("not implemented");
     }
 
-    public function getRemotePublicPath() {
-        return null;
+    public function getRemotePublicPath(): string {
+        throw new \Exception("not implemented");
     }
 
-    public function getRemotePublicUrl() {
-        return null;
+    public function getRemotePublicUrl(): string {
+        throw new \Exception("not implemented");
     }
 
-    public function getRemotePrivatePath() {
-        return null;
+    public function getRemotePrivatePath(): string {
+        throw new \Exception("not implemented");
     }
 
-    public function buildAndDeploy() {
+    public function buildAndDeploy(): void {
         $this->build_and_deploy_called = true;
     }
 
-    protected function getCommandLineOptions() {
+    protected function getCommandLineOptions(): array {
         return $this->command_line_options;
     }
 
-    protected function getEnvironmentVariable($variable_name) {
+    protected function getEnvironmentVariable(string $variable_name): string {
         return $this->environment_variables[$variable_name];
     }
 
-    public function install($public_path) {
+    /** @return array<string, string> */
+    public function install(string $public_path): array {
         $this->installed_to = $public_path;
+        return ['installed_to' => $public_path];
     }
 
-    public function testOnlyGetUsername() {
+    public function testOnlyGetUsername(): ?string {
         return $this->username;
     }
 
-    public function testOnlyGetPassword() {
+    public function testOnlyGetPassword(): ?string {
         return $this->password;
     }
 
-    public function testOnlyGetTarget() {
+    public function testOnlyGetTarget(): ?string {
         return $this->target;
     }
 
-    public function testOnlySetTarget($new_target) {
+    public function testOnlySetTarget(?string $new_target): void {
         $this->target = $new_target;
     }
 
-    public function testOnlyGetEnvironment() {
+    public function testOnlyGetEnvironment(): ?string {
         return $this->environment;
     }
 
-    public function testOnlySetEnvironment($new_environment) {
+    public function testOnlySetEnvironment(?string $new_environment): void {
         $this->environment = $new_environment;
     }
 
-    public function testOnlyGetRemotePublicRandomDeployDirname() {
+    public function testOnlyGetRemotePublicRandomDeployDirname(): string {
         return parent::getRemotePublicRandomDeployDirname();
     }
 
-    public function testOnlySetRemotePublicRandomDeployDirname($new) {
+    public function testOnlySetRemotePublicRandomDeployDirname(string $new): void {
         $this->remote_public_random_deploy_dirname = $new;
     }
 }

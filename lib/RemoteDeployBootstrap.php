@@ -10,16 +10,18 @@ namespace PhpDeploy;
  * HTTP connection to invoke this file.
  */
 class RemoteDeployBootstrap {
-    public $DEPLOY_PATH_OVERRIDE = '%%%DEPLOY_PATH_OVERRIDE%%%';
-    public $PUBLIC_PATH_OVERRIDE = '%%%PUBLIC_PATH_OVERRIDE%%%';
-    public $ARGS_OVERRIDE = '%%%ARGS_OVERRIDE%%%';
+    public string $DEPLOY_PATH_OVERRIDE = '%%%DEPLOY_PATH_OVERRIDE%%%';
+    public string $PUBLIC_PATH_OVERRIDE = '%%%PUBLIC_PATH_OVERRIDE%%%';
+    public string $ARGS_OVERRIDE = '%%%ARGS_OVERRIDE%%%';
 
-    public $logger;
+    public RemoteDeployLogger $logger;
 
-    public function run() {
-        if (!$this->logger) {
-            throw new \Exception("RemoteDeployBootstrap::run needs a logger!");
-        }
+    public function __construct(RemoteDeployLogger $logger) {
+        $this->logger = $logger;
+    }
+
+    /** @return array<string> */
+    public function run(): array {
         try {
             $this->logger->info('Initialize...');
             $date = $this->getDateString();
@@ -72,7 +74,7 @@ class RemoteDeployBootstrap {
 
             $this->logger->info('Put the candidate live...');
             if (is_dir($previous_path)) {
-                $this->remove_r($previous_path);
+                $this->removeRecursive($previous_path);
             }
             if (is_dir($live_path)) {
                 if (!rename($live_path, $previous_path)) {
@@ -134,13 +136,15 @@ class RemoteDeployBootstrap {
     }
 
     // This file needs to be dependency-free!
-    protected function remove_r($path) {
+    protected function removeRecursive(string $path): void {
         if (is_dir($path)) {
             $entries = scandir($path);
-            foreach ($entries as $entry) {
-                if ($entry !== '.' && $entry !== '..') {
-                    $entry_path = "{$path}/{$entry}";
-                    $this->remove_r($entry_path);
+            if ($entries) {
+                foreach ($entries as $entry) {
+                    if ($entry !== '.' && $entry !== '..') {
+                        $entry_path = "{$path}/{$entry}";
+                        $this->removeRecursive($entry_path);
+                    }
                 }
             }
             rmdir($path);
@@ -151,28 +155,29 @@ class RemoteDeployBootstrap {
         }
     }
 
-    protected function getDateString() {
+    protected function getDateString(): string {
         return date('Y-m-d_H_i_s');
     }
 
-    protected function getDeployPath() {
+    protected function getDeployPath(): string {
         return $this->getOverrideOrDefault($this->DEPLOY_PATH_OVERRIDE, '');
     }
 
-    protected function getPublicPath() {
+    protected function getPublicPath(): string {
         return $this->getOverrideOrDefault($this->PUBLIC_PATH_OVERRIDE, '');
     }
 
-    protected function getArgs() {
+    /** @return array<string, mixed> */
+    protected function getArgs(): array {
         $args_json = $this->getOverrideOrDefault($this->ARGS_OVERRIDE, '{}');
         return json_decode($args_json, true) ?? [];
     }
 
-    protected function getPublicDeployPath() {
+    protected function getPublicDeployPath(): string {
         return __DIR__;
     }
 
-    protected function getOverrideOrDefault($override, $default) {
+    protected function getOverrideOrDefault(string $override, string $default): string {
         $is_overridden = substr($override, 0, 3) !== '%%%';
         if ($is_overridden) {
             return $override;
@@ -182,21 +187,31 @@ class RemoteDeployBootstrap {
 }
 
 class RemoteDeployLogger {
-    public $messages = [];
+    /** @var array<array{level: string, timestamp: float, message: string|\Stringable, context: array<mixed>}> */
+    public array $messages = [];
 
-    public function __call($name, $arguments) {
-        if (count($arguments) > 0) {
-            $this->log($name, $arguments[0], $arguments[1] ?? []);
-        }
-    }
-
-    public function log($level, string|\Stringable $message, array $context = []): void {
+    /** @param array<mixed> $context */
+    public function log(string $level, string|\Stringable $message, array $context = []): void {
         $this->messages[] = [
             'level' => $level,
             'timestamp' => microtime(true),
             'message' => $message,
             'context' => $context,
         ];
+    }
+
+    /** @param array<mixed> $context */
+    public function info(string|\Stringable $message, array $context = []): void {
+        $this->log('info', $message, $context);
+    }
+
+    /**
+     * Fallback function for log levels that are not explicitly implemented.
+     *
+     * @param array{0: string|\Stringable, 1: ?array<mixed>} $arguments
+     */
+    public function __call(string $name, array $arguments): void {
+        $this->log($name, $arguments[0], $arguments[1] ?? []);
     }
 }
 
@@ -205,9 +220,8 @@ if ($_SERVER['SCRIPT_FILENAME'] === realpath(__FILE__)) {
         set_time_limit(4000);
         ignore_user_abort(true);
 
-        $remote_deploy_bootstrap = new RemoteDeployBootstrap();
         $logger = new RemoteDeployLogger();
-        $remote_deploy_bootstrap->logger = $logger;
+        $remote_deploy_bootstrap = new RemoteDeployBootstrap($logger);
         $result = $remote_deploy_bootstrap->run();
         echo json_encode([
             'success' => true,

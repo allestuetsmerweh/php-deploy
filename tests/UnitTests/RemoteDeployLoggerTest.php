@@ -26,14 +26,22 @@ final class RemoteDeployLoggerTest extends UnitTestCase {
 
     public function testLevels(): void {
         $logger = new RemoteDeployLogger();
+        // @phpstan-ignore-next-line Intentional fallback.
         $logger->emergency('emergency-message', []);
+        // @phpstan-ignore-next-line Intentional fallback.
         $logger->alert('alert-message', []);
+        // @phpstan-ignore-next-line Intentional fallback.
         $logger->critical('critical-message', []);
+        // @phpstan-ignore-next-line Intentional fallback.
         $logger->error('error-message', []);
+        // @phpstan-ignore-next-line Intentional fallback.
         $logger->warning('warning-message', []);
+        // @phpstan-ignore-next-line Intentional fallback.
         $logger->notice('notice-message', []);
         $logger->info('info-message', []);
+        // @phpstan-ignore-next-line Intentional fallback.
         $logger->debug('debug-message', []);
+        // @phpstan-ignore-next-line Intentional fallback.
         $logger->invalid('invalid-message', []);
         $this->assertSame([
             'emergency',

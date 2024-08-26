@@ -1,0 +1,8 @@
+parameters:
+    level: 8
+    paths:
+        - lib
+        - tests
+    excludePaths:
+        - tests/IntegrationTests/tmp
+        - tests/UnitTests/tmp
