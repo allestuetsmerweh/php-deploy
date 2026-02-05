@@ -161,6 +161,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
 
         $this->assertSame([
             ['info', 'Initialize...', []],
+            ['info', 'Clean up...', []],
         ], $this->convertLogs($fake_logger->messages));
     }
 
@@ -208,6 +209,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
         $this->assertSame([
             ['info', 'Initialize...', []],
             ['info', 'Run some checks...', []],
+            ['info', 'Clean up...', []],
         ], $this->convertLogs($fake_logger->messages));
     }
 
@@ -259,6 +261,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Initialize...', []],
             ['info', 'Run some checks...', []],
             ['info', 'Unzip the uploaded file to candidate directory...', []],
+            ['info', 'Clean up...', []],
         ], $this->convertLogs($fake_logger->messages));
     }
 
@@ -455,6 +458,7 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Put the candidate live...', []],
             ['info', 'Clean up...', []],
             ['info', 'Install...', []],
+            ['info', 'Clean up...', []],
         ], $this->convertLogs($fake_logger->messages));
     }
 

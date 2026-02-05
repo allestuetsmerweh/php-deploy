@@ -42,8 +42,10 @@ abstract class AbstractDeploy implements LoggerAwareInterface {
 
     public function buildAndDeploy(): void {
         $this->build();
-        $result = $this->deploy();
-        $this->afterDeploy($result);
+        $this->deploy();
+    }
+
+    protected function afterUpload(): void {
     }
 
     /** @param array<string, string> $result */
@@ -100,17 +102,28 @@ abstract class AbstractDeploy implements LoggerAwareInterface {
     /** @return array<string, string> */
     public function deploy(): array {
         $this->logger?->info("Deploy...");
+        $this->upload();
+        $this->afterUpload();
+        $result = $this->runDeployScript();
+        $this->afterDeploy($result);
+        return $result;
+    }
+
+    protected function upload(): void {
+        $this->logger?->info("Uploading...");
+        $this->uploadZipFile();
+        $this->uploadDeployScript();
+        $this->logger?->info("Uploading done.");
+    }
+
+    protected function uploadZipFile(): void {
+        $remote_fs = $this->getFlysystemFilesystemSingleton();
         $local_zip_path = $this->getLocalZipPath();
         $remote_zip_path = $this->getRemoteZipPath();
-        $local_script_path = __DIR__.'/RemoteDeployBootstrap.php';
-        $remote_script_path = $this->getRemoteScriptPath();
-        $remote_deploy_path = $this->getRemoteDeployPath();
-        $remote_public_path = $this->getRemotePublicPath();
-        $remote_fs = $this->getFlysystemFilesystemSingleton();
 
         $zip_size = filesize($local_zip_path);
         $pretty_zip_size = $zip_size ? $this->humanFileSize($zip_size) : '? bytes';
-        $this->logger?->info("Upload ({$pretty_zip_size})...");
+        $this->logger?->info("Uploading Zip File ({$pretty_zip_size})...");
         try {
             $remote_fs->createDirectory(dirname($remote_zip_path));
         } catch (\Throwable $th) {
@@ -122,18 +135,35 @@ abstract class AbstractDeploy implements LoggerAwareInterface {
         }
         $remote_fs->writeStream($remote_zip_path, $local_zip_stream);
         fclose($local_zip_stream);
+    }
+
+    protected function uploadDeployScript(): void {
+        $remote_fs = $this->getFlysystemFilesystemSingleton();
+        $local_script_path = __DIR__.'/RemoteDeployBootstrap.php';
+        $remote_script_path = $this->getRemoteScriptPath();
+        $remote_deploy_path = $this->getRemoteDeployPath();
+        $remote_public_path = $this->getRemotePublicPath();
+
         $local_script_contents = file_get_contents($local_script_path);
         if (!$local_script_contents) {
             throw new \Exception("Could not read local script: {$local_script_path}");
         }
         $remote_script_contents = str_replace(
             ['%%%DEPLOY_PATH_OVERRIDE%%%', '%%%PUBLIC_PATH_OVERRIDE%%%', '%%%ARGS_OVERRIDE%%%'],
-            [$remote_deploy_path, $remote_public_path, json_encode($this->getArgs())],
+            [$remote_deploy_path, $remote_public_path, json_encode($this->getArgs()) ?: '{}'],
             $local_script_contents,
         );
+        $this->logger?->info("Uploading Deploy Script...");
+        try {
+            $remote_fs->createDirectory(dirname($remote_script_path));
+        } catch (\Throwable $th) {
+            // ignore
+        }
         $remote_fs->write($remote_script_path, $remote_script_contents);
-        $this->logger?->info("Upload done.");
+    }
 
+    /** @return array<string> */
+    protected function runDeployScript(): array {
         $base_url = $this->getRemotePublicUrl();
         $deploy_dirname = $this->getRemotePublicRandomDeployDirname();
         $url = "{$base_url}/{$deploy_dirname}/deploy.php";
@@ -171,6 +201,7 @@ abstract class AbstractDeploy implements LoggerAwareInterface {
         return number_format($size, 0, ".", "'")." bytes";
     }
 
+    /** @param non-empty-string $url */
     private function invokeDeployScript(string $url): string {
         $errors = [];
         for ($i = 0; $i < self::MAX_DEPLOY_SCRIPT_ATTEMPTS; $i++) {

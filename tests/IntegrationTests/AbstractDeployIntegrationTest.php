@@ -74,6 +74,10 @@ class FakeIntegrationDeploy extends AbstractDeploy {
         return [];
     }
 
+    protected function afterUpload(): void {
+        $this->logger?->info("afterUpload");
+    }
+
     /** @param array<string, string> $result */
     protected function afterDeploy(array $result): void {
         $json_result = json_encode($result);
@@ -196,8 +200,11 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'Zipping done.', []],
             ['info', 'Build done.', []],
             ['info', 'Deploy...', []],
-            ['info', 'Upload (6.88 MB)...', []],
-            ['info', 'Upload done.', []],
+            ['info', 'Uploading...', []],
+            ['info', 'Uploading Zip File (7.35 MB)...', []],
+            ['info', 'Uploading Deploy Script...', []],
+            ['info', 'Uploading done.', []],
+            ['info', 'afterUpload', []],
             ['info', 'Running deploy script (http://127.0.0.1:8081/***/deploy.php)...', []],
             ['info', 'remote> Initialize...', []],
             ['info', 'remote> Run some checks...', []],
@@ -267,8 +274,11 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
 
         $this->assertSame([
             ['info', 'Deploy...', []],
-            ['info', 'Upload (729 bytes)...', []],
-            ['info', 'Upload done.', []],
+            ['info', 'Uploading...', []],
+            ['info', 'Uploading Zip File (729 bytes)...', []],
+            ['info', 'Uploading Deploy Script...', []],
+            ['info', 'Uploading done.', []],
+            ['info', 'afterUpload', []],
             ['info', 'Running deploy script (http://127.0.0.1:8082/***/deploy.php)...', []],
             ['info', 'remote> Initialize...', []],
             ['info', 'remote> Run some checks...', []],
@@ -279,6 +289,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'remote> Install...', []],
             ['info', 'remote> Done.', []],
             ['info', 'Deploy done with result: {"file":"Deploy.php","result":"standalone-deploy-result"}', []],
+            ['info', 'afterDeploy {"file":"Deploy.php","result":"standalone-deploy-result"}', []],
         ], array_map(function ($entry) {
             return [$entry[0], preg_replace('/\/[\S]{24}\//', '/***/', strval($entry[1])), $entry[2]];
         }, $fake_logger->messages));
@@ -355,8 +366,11 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
 
         $this->assertSame([
             ['info', 'Deploy...', []],
-            ['info', 'Upload (729 bytes)...', []],
-            ['info', 'Upload done.', []],
+            ['info', 'Uploading...', []],
+            ['info', 'Uploading Zip File (729 bytes)...', []],
+            ['info', 'Uploading Deploy Script...', []],
+            ['info', 'Uploading done.', []],
+            ['info', 'afterUpload', []],
             ['info', 'Running deploy script (http://127.0.0.1:8083/***/deploy.php)...', []],
             ['info', 'remote> Initialize...', []],
             ['info', 'remote> Run some checks...', []],
@@ -367,6 +381,7 @@ final class AbstractDeployIntegrationTest extends IntegrationTestCase {
             ['info', 'remote> Install...', []],
             ['info', 'remote> Done.', []],
             ['info', 'Deploy done with result: {"file":"Deploy.php","result":"standalone-deploy-result"}', []],
+            ['info', 'afterDeploy {"file":"Deploy.php","result":"standalone-deploy-result"}', []],
         ], array_map(function ($entry) {
             return [$entry[0], preg_replace('/\/[\S]{24}\//', '/***/', strval($entry[1])), $entry[2]];
         }, $fake_logger->messages));

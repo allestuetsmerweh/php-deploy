@@ -137,7 +137,7 @@ class IntegrationTestCase extends TestCase {
         if (!$ch) {
             throw new \Exception('Could not create curl handle?!?');
         }
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         return curl_errno($ch) === 0 && curl_exec($ch) === 'true';
     }
 
