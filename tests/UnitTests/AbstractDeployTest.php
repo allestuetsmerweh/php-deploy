@@ -93,6 +93,10 @@ class FakeDeploy extends AbstractDeploy {
         return ['install_result' => 'fake-install-result'];
     }
 
+    protected function afterUpload(): void {
+        $this->logger?->info("afterUpload");
+    }
+
     protected function afterDeploy(array $result): void {
         $json_result = json_encode($result);
         $this->logger?->info("afterDeploy {$json_result}");
@@ -185,8 +189,11 @@ final class AbstractDeployTest extends UnitTestCase {
             ['info', 'Zipping done.', []],
             ['info', 'Build done.', []],
             ['info', 'Deploy...', []],
-            ['info', 'Upload (244 bytes)...', []],
-            ['info', 'Upload done.', []],
+            ['info', 'Uploading...', []],
+            ['info', 'Uploading Zip File (244 bytes)...', []],
+            ['info', 'Uploading Deploy Script...', []],
+            ['info', 'Uploading done.', []],
+            ['info', 'afterUpload', []],
             ['info', 'Running deploy script (file://***/tmp/remote/private_files/deterministically-random/deploy.php)...', []],
             ['info', 'remote> 2009-02-13 23:31:30.000 something started...', []],
             ['info', 'Deploy done with result: {"deploy_result":"fake-deploy-result"}', []],
@@ -236,8 +243,11 @@ final class AbstractDeployTest extends UnitTestCase {
                 ['info', 'Zipping done.', []],
                 ['info', 'Build done.', []],
                 ['info', 'Deploy...', []],
-                ['info', 'Upload (244 bytes)...', []],
-                ['info', 'Upload done.', []],
+                ['info', 'Uploading...', []],
+                ['info', 'Uploading Zip File (244 bytes)...', []],
+                ['info', 'Uploading Deploy Script...', []],
+                ['info', 'Uploading done.', []],
+                ['info', 'afterUpload', []],
                 ['info', 'Running deploy script (file://***/tmp/remote/private_files/deterministically-random/deploy.php)...', []],
                 ['error', 'remote> 2009-02-13 23:31:30.000 something failed...', []],
                 ['invalid', 'remote> 2009-02-13 23:31:31.000 something is invalid...', []],
@@ -268,8 +278,11 @@ final class AbstractDeployTest extends UnitTestCase {
                 ['info', 'Zipping done.', []],
                 ['info', 'Build done.', []],
                 ['info', 'Deploy...', []],
-                ['info', 'Upload (244 bytes)...', []],
-                ['info', 'Upload done.', []],
+                ['info', 'Uploading...', []],
+                ['info', 'Uploading Zip File (244 bytes)...', []],
+                ['info', 'Uploading Deploy Script...', []],
+                ['info', 'Uploading done.', []],
+                ['info', 'afterUpload', []],
                 ['info', 'Running deploy script (file://***/tmp/remote/private_files/deterministically-random/deploy.php)...', []],
             ], array_map(function ($entry) {
                 return [$entry[0], str_replace(__DIR__, '***', strval($entry[1])), $entry[2]];
@@ -299,8 +312,11 @@ final class AbstractDeployTest extends UnitTestCase {
                 ['info', 'Zipping done.', []],
                 ['info', 'Build done.', []],
                 ['info', 'Deploy...', []],
-                ['info', 'Upload (244 bytes)...', []],
-                ['info', 'Upload done.', []],
+                ['info', 'Uploading...', []],
+                ['info', 'Uploading Zip File (244 bytes)...', []],
+                ['info', 'Uploading Deploy Script...', []],
+                ['info', 'Uploading done.', []],
+                ['info', 'afterUpload', []],
                 ['info', 'Running deploy script (file://***/tmp/remote/private_files/deterministically-random/deploy.php)...', []],
             ], array_map(function ($entry) {
                 return [$entry[0], str_replace(__DIR__, '***', strval($entry[1])), $entry[2]];
@@ -329,8 +345,11 @@ final class AbstractDeployTest extends UnitTestCase {
             ['info', 'Zipping done.', []],
             ['info', 'Build done.', []],
             ['info', 'Deploy...', []],
-            ['info', 'Upload (244 bytes)...', []],
-            ['info', 'Upload done.', []],
+            ['info', 'Uploading...', []],
+            ['info', 'Uploading Zip File (244 bytes)...', []],
+            ['info', 'Uploading Deploy Script...', []],
+            ['info', 'Uploading done.', []],
+            ['info', 'afterUpload', []],
             ['info', 'Running deploy script (file://***/tmp/remote/private_files/deterministically-random/deploy.php)...', []],
             ['info', 'remote> 2009-02-13 23:31:30.000 something started...', []],
             ['info', 'Deploy done with result: {"deploy_result":"fake-deploy-result"}', []],

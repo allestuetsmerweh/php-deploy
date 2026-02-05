@@ -4,5 +4,5 @@ parameters:
         - lib
         - tests
     excludePaths:
-        - tests/IntegrationTests/tmp
-        - tests/UnitTests/tmp
+        - tests/IntegrationTests/tmp/*
+        - tests/UnitTests/tmp/*

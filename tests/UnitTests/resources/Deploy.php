@@ -3,7 +3,7 @@
 use PhpDeploy\RemoteDeployLogger;
 
 class Deploy {
-    public RemoteDeployLogger $remote_logger_injected;
+    public ?RemoteDeployLogger $remote_logger_injected;
     /** @var array<string, string> */
     public array $args_injected;
 

@@ -16,6 +16,17 @@ class RemoteDeployBootstrap {
 
     public RemoteDeployLogger $logger;
 
+    public string $install_path;
+    public string $php_path;
+    public string $zip_path;
+    public string $invalid_zip_path;
+    public string $deploy_path;
+    public string $candidate_path;
+    public string $live_path;
+    public string $previous_path;
+    public string $invalid_candidate_path;
+    public string $residual_candidate_path;
+
     public function __construct(RemoteDeployLogger $logger) {
         $this->logger = $logger;
     }
@@ -23,116 +34,131 @@ class RemoteDeployBootstrap {
     /** @return array<string> */
     public function run(): array {
         try {
-            $this->logger->info('Initialize...');
-            $date = $this->getDateString();
-            $public_deploy_path = $this->getPublicDeployPath();
-            $public_path = $this->getPublicPath();
-            $php_path = "{$public_deploy_path}/deploy.php";
-            $zip_path = "{$public_deploy_path}/deploy.zip";
-            $invalid_zip_path = "{$public_deploy_path}/invalid_deploy_{$date}.zip";
-            $base_index = strpos($public_deploy_path, "/{$public_path}/");
-            if ($base_index === false) {
-                throw new \Exception("Did not find the public path ({$public_path}) in {$public_deploy_path}");
-            }
-            $base_path = substr($public_deploy_path, 0, $base_index);
-            $deploy_path = $base_path.'/'.$this->getDeployPath();
-            $candidate_path = "{$deploy_path}/candidate";
-            $live_path = "{$deploy_path}/live";
-            $previous_path = "{$deploy_path}/previous";
-            $invalid_candidate_path = "{$deploy_path}/invalid_candidate_{$date}";
-            $residual_candidate_path = "{$deploy_path}/residual_candidate_{$date}";
-            $error_log_path = "{$deploy_path}/deploy_errors.log";
-
-            ini_set('log_errors', 1);
-            ini_set('error_log', $error_log_path);
-            error_reporting(E_ALL);
-
-            $this->logger->info('Run some checks...');
-            if (!is_dir($deploy_path)) {
-                throw new \Exception("Deploy path ({$deploy_path}) does not exist");
-            }
-
-            if (is_dir($candidate_path)) {
-                $this->logger->info('A previous deployment failed. Save residual candidate...');
-                if (!rename($candidate_path, $residual_candidate_path)) {
-                    // @codeCoverageIgnoreStart
-                    // Reason: Hard to test!
-                    throw new \Exception("Could not rename {$candidate_path} to {$residual_candidate_path}");
-                    // @codeCoverageIgnoreEnd
-                }
-            }
-
-            $this->logger->info('Unzip the uploaded file to candidate directory...');
-            mkdir($candidate_path);
-            $zip = new \ZipArchive();
-            $zip->open($zip_path);
-            $zip->extractTo($candidate_path);
-            $zip->close();
-
-            $this->logger->info('Remove the zip file...');
-            unlink($zip_path);
-
-            $this->logger->info('Put the candidate live...');
-            if (is_dir($previous_path)) {
-                $this->removeRecursive($previous_path);
-            }
-            if (is_dir($live_path)) {
-                if (!rename($live_path, $previous_path)) {
-                    // @codeCoverageIgnoreStart
-                    // Reason: Hard to test!
-                    throw new \Exception("Could not rename {$live_path} to {$previous_path}");
-                    // @codeCoverageIgnoreEnd
-                }
-            }
-            if (!rename($candidate_path, $live_path)) {
-                // @codeCoverageIgnoreStart
-                // Reason: Hard to test!
-                throw new \Exception("Could not rename {$live_path} to {$previous_path}");
-                // @codeCoverageIgnoreEnd
-            }
-
-            $this->logger->info('Clean up...');
-            if (is_file($php_path)) {
-                unlink($php_path);
-            }
-            rmdir(dirname($php_path));
-
-            $this->logger->info('Install...');
-            $install_script_path = "{$live_path}/Deploy.php";
-            if (!is_file($install_script_path)) {
-                throw new \Exception("Deploy.php not found");
-            }
-            require_once $install_script_path;
-            if (!class_exists('\Deploy') || !method_exists('\Deploy', 'install')) {
-                // @codeCoverageIgnoreStart
-                // Reason: Hard to test!
-                throw new \Exception("Class Deploy is not defined in Deploy.php");
-                // @codeCoverageIgnoreEnd
-            }
-            $deploy = new \Deploy();
-            if (method_exists('\Deploy', 'injectRemoteLogger')) {
-                $deploy->injectRemoteLogger($this->logger);
-            }
-            if (method_exists('\Deploy', 'injectArgs')) {
-                $deploy->injectArgs($this->getArgs());
-            }
-            $install_path = $base_path.'/'.$this->getPublicPath();
-            $result = $deploy->install($install_path);
+            $this->initialize();
+            $this->maybeArchiveResidualCandidate();
+            $this->unzipCandidate();
+            $this->putCandidateLive();
+            $this->cleanUp();
+            $result = $this->install();
             $this->logger->info('Done.');
             return $result;
         } catch (\Throwable $th) {
-            // Keep the zip (for debugging purposes).
-            if (isset($zip_path) && is_file($zip_path) && isset($invalid_zip_path)) {
-                rename($zip_path, $invalid_zip_path);
-            }
-            if (isset($php_path) && is_file($php_path)) {
-                unlink($php_path);
-            }
-            if (isset($candidate_path) && is_dir($candidate_path) && isset($invalid_candidate_path)) {
-                rename($candidate_path, $invalid_candidate_path);
-            }
+            $this->cleanUp();
             throw $th;
         }
+    }
+
+    protected function initialize(): void {
+        $this->logger->info('Initialize...');
+        $date = $this->getDateString();
+        $public_deploy_path = $this->getPublicDeployPath();
+        $this->install_path = "{$this->getBasePath()}/{$this->getPublicPath()}";
+        $this->php_path = "{$public_deploy_path}/deploy.php";
+        $this->zip_path = "{$public_deploy_path}/deploy.zip";
+        $this->invalid_zip_path = "{$public_deploy_path}/invalid_deploy_{$date}.zip";
+        $this->deploy_path = "{$this->getBasePath()}/{$this->getDeployPath()}";
+        $error_log_path = "{$this->deploy_path}/deploy_errors.log";
+        $this->candidate_path = "{$this->deploy_path}/candidate";
+        $this->live_path = "{$this->deploy_path}/live";
+        $this->previous_path = "{$this->deploy_path}/previous";
+        $this->invalid_candidate_path = "{$this->deploy_path}/invalid_candidate_{$date}";
+        $this->residual_candidate_path = "{$this->deploy_path}/residual_candidate_{$date}";
+
+        ini_set('log_errors', 1);
+        ini_set('error_log', $error_log_path);
+        error_reporting(E_ALL);
+
+        $this->logger->info('Run some checks...');
+        if (!is_dir($this->deploy_path)) {
+            throw new \Exception("Deploy path ({$this->deploy_path}) does not exist");
+        }
+    }
+
+    protected function maybeArchiveResidualCandidate(): void {
+        if (is_dir($this->candidate_path)) {
+            $this->logger->info('A previous deployment failed. Save residual candidate...');
+            if (!rename($this->candidate_path, $this->residual_candidate_path)) {
+                // @codeCoverageIgnoreStart
+                // Reason: Hard to test!
+                throw new \Exception("Could not rename {$this->candidate_path} to {$this->residual_candidate_path}");
+                // @codeCoverageIgnoreEnd
+            }
+        }
+    }
+
+    protected function unzipCandidate(): void {
+        $this->logger->info('Unzip the uploaded file to candidate directory...');
+        mkdir($this->candidate_path);
+        $zip = new \ZipArchive();
+        $zip->open($this->zip_path);
+        $zip->extractTo($this->candidate_path);
+        $zip->close();
+
+        $this->logger->info('Remove the zip file...');
+        unlink($this->zip_path);
+    }
+
+    protected function putCandidateLive(): void {
+        $this->logger->info('Put the candidate live...');
+        if (is_dir($this->previous_path)) {
+            $this->removeRecursive($this->previous_path);
+        }
+        if (is_dir($this->live_path)) {
+            if (!rename($this->live_path, $this->previous_path)) {
+                // @codeCoverageIgnoreStart
+                // Reason: Hard to test!
+                throw new \Exception("Could not rename {$this->live_path} to {$this->previous_path}");
+                // @codeCoverageIgnoreEnd
+            }
+        }
+        if (!rename($this->candidate_path, $this->live_path)) {
+            // @codeCoverageIgnoreStart
+            // Reason: Hard to test!
+            throw new \Exception("Could not rename {$this->live_path} to {$this->previous_path}");
+            // @codeCoverageIgnoreEnd
+        }
+    }
+
+    protected function cleanUp(): void {
+        $this->logger->info('Clean up...');
+        // Keep the zip (for debugging purposes).
+        if (isset($this->zip_path) && is_file($this->zip_path) && isset($this->invalid_zip_path)) {
+            rename($this->zip_path, $this->invalid_zip_path);
+        }
+        if (isset($this->php_path) && is_file($this->php_path)) {
+            unlink($this->php_path);
+            rmdir(dirname($this->php_path));
+        }
+        if (isset($this->candidate_path) && is_dir($this->candidate_path) && isset($this->invalid_candidate_path)) {
+            rename($this->candidate_path, $this->invalid_candidate_path);
+        }
+    }
+
+    /** @return array<string> */
+    protected function install(): array {
+        $this->logger->info('Install...');
+        $install_script_path = "{$this->live_path}/Deploy.php";
+        if (!is_file($install_script_path)) {
+            throw new \Exception("Deploy.php not found");
+        }
+        require_once $install_script_path;
+        // @phpstan-ignore-next-line function.alreadyNarrowedType
+        if (!class_exists('\Deploy') || !method_exists('\Deploy', 'install')) {
+            // @codeCoverageIgnoreStart
+            // Reason: Hard to test!
+            throw new \Exception("Class Deploy is not defined in Deploy.php");
+            // @codeCoverageIgnoreEnd
+        }
+        $deploy = new \Deploy();
+        // @phpstan-ignore-next-line function.alreadyNarrowedType
+        if (method_exists('\Deploy', 'injectRemoteLogger')) {
+            $deploy->injectRemoteLogger($this->logger);
+        }
+        // @phpstan-ignore-next-line function.alreadyNarrowedType
+        if (method_exists('\Deploy', 'injectArgs')) {
+            $deploy->injectArgs($this->getArgs());
+        }
+        return $deploy->install($this->install_path);
     }
 
     // This file needs to be dependency-free!
@@ -157,6 +183,16 @@ class RemoteDeployBootstrap {
 
     protected function getDateString(): string {
         return date('Y-m-d_H_i_s');
+    }
+
+    protected function getBasePath(): string {
+        $public_deploy_path = $this->getPublicDeployPath();
+        $public_path = $this->getPublicPath();
+        $base_index = strpos($public_deploy_path, "/{$public_path}/");
+        if ($base_index === false) {
+            throw new \Exception("Did not find the public path ({$public_path}) in {$public_deploy_path}");
+        }
+        return substr($public_deploy_path, 0, $base_index);
     }
 
     protected function getDeployPath(): string {
