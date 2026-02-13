@@ -21,6 +21,7 @@ class RemoteDeployBootstrap {
     public string $zip_path;
     public string $invalid_zip_path;
     public string $deploy_path;
+    public string $status_path;
     public string $candidate_path;
     public string $live_path;
     public string $previous_path;
@@ -41,9 +42,11 @@ class RemoteDeployBootstrap {
             $this->cleanUp();
             $result = $this->install();
             $this->logger->info('Done.');
+            $this->updateStatus(['status' => 'IDLE']);
             return $result;
         } catch (\Throwable $th) {
             $this->cleanUp();
+            $this->updateStatus(['status' => 'IDLE']);
             throw $th;
         }
     }
@@ -58,12 +61,14 @@ class RemoteDeployBootstrap {
         $this->invalid_zip_path = "{$public_deploy_path}/invalid_deploy_{$date}.zip";
         $this->deploy_path = "{$this->getBasePath()}/{$this->getDeployPath()}";
         $error_log_path = "{$this->deploy_path}/deploy_errors.log";
+        $this->status_path = "{$this->deploy_path}/status.json";
         $this->candidate_path = "{$this->deploy_path}/candidate";
         $this->live_path = "{$this->deploy_path}/live";
         $this->previous_path = "{$this->deploy_path}/previous";
         $this->invalid_candidate_path = "{$this->deploy_path}/invalid_candidate_{$date}";
         $this->residual_candidate_path = "{$this->deploy_path}/residual_candidate_{$date}";
 
+        $this->updateStatus(['status' => 'INIT']);
         ini_set('log_errors', 1);
         ini_set('error_log', $error_log_path);
         error_reporting(E_ALL);
@@ -88,6 +93,7 @@ class RemoteDeployBootstrap {
 
     protected function unzipCandidate(): void {
         $this->logger->info('Unzip the uploaded file to candidate directory...');
+        $this->updateStatus(['status' => 'UNZIP']);
         mkdir($this->candidate_path);
         $zip = new \ZipArchive();
         $zip->open($this->zip_path);
@@ -100,6 +106,7 @@ class RemoteDeployBootstrap {
 
     protected function putCandidateLive(): void {
         $this->logger->info('Put the candidate live...');
+        $this->updateStatus(['status' => 'SWAP']);
         if (is_dir($this->previous_path)) {
             $this->removeRecursive($this->previous_path);
         }
@@ -121,6 +128,7 @@ class RemoteDeployBootstrap {
 
     protected function cleanUp(): void {
         $this->logger->info('Clean up...');
+        $this->updateStatus(['status' => 'CLEAN']);
         // Keep the zip (for debugging purposes).
         if (isset($this->zip_path) && is_file($this->zip_path) && isset($this->invalid_zip_path)) {
             rename($this->zip_path, $this->invalid_zip_path);
@@ -137,6 +145,7 @@ class RemoteDeployBootstrap {
     /** @return array<string> */
     protected function install(): array {
         $this->logger->info('Install...');
+        $this->updateStatus(['status' => 'INSTALL']);
         $install_script_path = "{$this->live_path}/Deploy.php";
         if (!is_file($install_script_path)) {
             throw new \Exception("Deploy.php not found");
@@ -179,6 +188,16 @@ class RemoteDeployBootstrap {
         } elseif (is_file($path)) {
             unlink($path);
         }
+    }
+
+    /** @phpstan-param array<string, string> $updates */
+    protected function updateStatus(array $updates): void {
+        if (!isset($this->status_path)) {
+            return;
+        }
+        $status = json_decode(file_get_contents($this->status_path) ?: '{}', true);
+        $new_status = [...$status, ...$updates, 'date' => date('Y-m-d H:i:s')];
+        file_put_contents($this->status_path, json_encode($new_status, JSON_PRETTY_PRINT) ?: '{}');
     }
 
     protected function getDateString(): string {
