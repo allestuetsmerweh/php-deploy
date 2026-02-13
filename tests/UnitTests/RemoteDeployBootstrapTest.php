@@ -142,6 +142,11 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Args injected: []', []],
             ['info', 'Done.', []],
         ], $this->convertLogs($fake_logger->messages));
+
+        $this->assertMatchesRegularExpression(
+            '/"status":\s*"IDLE"/',
+            file_get_contents("{$private_deploy_path}/status.json") ?: ''
+        );
     }
 
     public function testRunInexistentPublicPath(): void {
@@ -211,6 +216,8 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Run some checks...', []],
             ['info', 'Clean up...', []],
         ], $this->convertLogs($fake_logger->messages));
+
+        $this->assertFalse(is_file("{$private_deploy_path}/status.json"));
     }
 
     public function testRunWithInvalidZip(): void {
@@ -263,6 +270,11 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Unzip the uploaded file to candidate directory...', []],
             ['info', 'Clean up...', []],
         ], $this->convertLogs($fake_logger->messages));
+
+        $this->assertMatchesRegularExpression(
+            '/"status":\s*"IDLE"/',
+            file_get_contents("{$private_deploy_path}/status.json") ?: ''
+        );
     }
 
     public function testRunWithResidualCandidate(): void {
@@ -321,6 +333,11 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Args injected: []', []],
             ['info', 'Done.', []],
         ], $this->convertLogs($fake_logger->messages));
+
+        $this->assertMatchesRegularExpression(
+            '/"status":\s*"IDLE"/',
+            file_get_contents("{$private_deploy_path}/status.json") ?: ''
+        );
     }
 
     public function testRunWithPreviousDeployments(): void {
@@ -409,6 +426,11 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Args injected: []', []],
             ['info', 'Done.', []],
         ], $this->convertLogs($fake_logger->messages));
+
+        $this->assertMatchesRegularExpression(
+            '/"status":\s*"IDLE"/',
+            file_get_contents("{$private_deploy_path}/status.json") ?: ''
+        );
     }
 
     public function testRunWithoutDeployPhp(): void {
@@ -460,6 +482,11 @@ final class RemoteDeployBootstrapTest extends UnitTestCase {
             ['info', 'Install...', []],
             ['info', 'Clean up...', []],
         ], $this->convertLogs($fake_logger->messages));
+
+        $this->assertMatchesRegularExpression(
+            '/"status":\s*"IDLE"/',
+            file_get_contents("{$private_deploy_path}/status.json") ?: ''
+        );
     }
 
     public function testRemoveR(): void {
