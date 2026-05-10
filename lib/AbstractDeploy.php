@@ -111,9 +111,43 @@ abstract class AbstractDeploy implements LoggerAwareInterface {
 
     protected function upload(): void {
         $this->logger?->info("Uploading...");
+        $this->remoteCleanUp();
         $this->uploadZipFile();
         $this->uploadDeployScript();
         $this->logger?->info("Uploading done.");
+    }
+
+    protected function remoteCleanUp(): void {
+        $remote_fs = $this->getFlysystemFilesystemSingleton();
+        $public_path = $this->getRemotePublicPath();
+        $listing = $remote_fs->listContents($public_path);
+        foreach ($listing as $item) {
+            $entry_name = basename($item->path());
+            if (!$item->isDir() || !preg_match('/^[a-zA-Z0-9_-]{24}$/', $entry_name)) {
+                continue;
+            }
+            $listing_ = $remote_fs->listContents("{$public_path}/{$entry_name}");
+            $has_php = false;
+            $has_zip = false;
+            $has_nothing_else = true;
+            foreach ($listing_ as $item_) {
+                $entry_name_ = basename($item_->path());
+                if ($entry_name_ === 'deploy.php') {
+                    $has_php = true;
+                } elseif ($entry_name_ === 'deploy.zip') {
+                    $has_zip = true;
+                } elseif ($entry_name_ === '.' || $entry_name_ === '..') {
+                } else {
+                    $has_nothing_else = false;
+                }
+            }
+            $should_remove = $has_zip && $has_php && $has_nothing_else;
+            if ($should_remove) {
+                $remote_fs->delete("{$public_path}/{$entry_name}/deploy.php");
+                $remote_fs->delete("{$public_path}/{$entry_name}/deploy.zip");
+                $remote_fs->deleteDirectory("{$public_path}/{$entry_name}");
+            }
+        }
     }
 
     protected function uploadZipFile(): void {

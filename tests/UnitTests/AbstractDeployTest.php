@@ -155,13 +155,19 @@ final class AbstractDeployTest extends UnitTestCase {
         $fake_logger = new FakeLogger();
         $fake_deployment_builder->setLogger($fake_logger);
 
-        $fake_deployment_builder->buildAndDeploy();
-
         $local_folder_path = $fake_deployment_builder->getLocalBuildFolderPath();
         $local_zip_path = $fake_deployment_builder->getLocalZipPath();
         $remote_base_path = __DIR__.'/tmp/remote/';
         $remote_zip_path = $fake_deployment_builder->getRemoteZipPath();
         $remote_script_path = $fake_deployment_builder->getRemoteScriptPath();
+
+        file_put_contents("{$remote_base_path}public_html/important_file.php", '');
+        mkdir("{$remote_base_path}public_html/important_folder_plskeep", 0o777, true);
+        mkdir("{$remote_base_path}public_html/ABCabc1234-_ABCabc1234-_", 0o777, true);
+        file_put_contents("{$remote_base_path}public_html/ABCabc1234-_ABCabc1234-_/deploy.php", '');
+        file_put_contents("{$remote_base_path}public_html/ABCabc1234-_ABCabc1234-_/deploy.zip", '');
+
+        $fake_deployment_builder->buildAndDeploy();
 
         $this->assertSame(__DIR__.'/tmp/local/local_tmp/deterministically-random/', $local_folder_path);
         $this->assertSame(true, is_dir($local_folder_path));
@@ -180,6 +186,12 @@ final class AbstractDeployTest extends UnitTestCase {
 
         $this->assertSame(true, is_file("{$remote_base_path}{$remote_zip_path}"));
         $this->assertSame(true, is_file("{$remote_base_path}{$remote_script_path}"));
+
+        $this->assertSame(true, is_file("{$remote_base_path}public_html/important_file.php"));
+        $this->assertSame(true, is_dir("{$remote_base_path}public_html/important_folder_plskeep"));
+        $this->assertSame(false, is_file("{$remote_base_path}public_html/ABCabc1234-_ABCabc1234-_/deploy.php"));
+        $this->assertSame(false, is_file("{$remote_base_path}public_html/ABCabc1234-_ABCabc1234-_/deploy.zip"));
+        $this->assertSame(false, is_dir("{$remote_base_path}public_html/ABCabc1234-_ABCabc1234-_"));
 
         $this->assertSame([
             ['info', 'Build...', []],
