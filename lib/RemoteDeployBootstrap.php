@@ -192,10 +192,10 @@ class RemoteDeployBootstrap {
 
     /** @phpstan-param array<string, string> $updates */
     protected function updateStatus(array $updates): void {
-        if (!isset($this->status_path)) {
+        if (!isset($this->status_path) || !is_dir(dirname($this->status_path))) {
             return;
         }
-        $status = json_decode(file_get_contents($this->status_path) ?: '{}', true);
+        $status = json_decode(@file_get_contents($this->status_path) ?: '{}', true);
         $new_status = [...$status, ...$updates, 'date' => date('Y-m-d H:i:s')];
         file_put_contents($this->status_path, json_encode($new_status, JSON_PRETTY_PRINT) ?: '{}');
     }
